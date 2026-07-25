@@ -576,13 +576,27 @@ class Api:
         return True
 
     def _write(self, state):
-        # атомарная запись: пишем во временный файл, затем заменяем основной
-        tmp = CONFIG + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(state, f, ensure_ascii=False, indent=2)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp, CONFIG)
+        if not hasattr(self, "_write_lock"):
+            self._write_lock = threading.Lock()
+        with self._write_lock:
+            os.makedirs(os.path.dirname(CONFIG), exist_ok=True)
+            tmp = CONFIG + "." + str(os.getpid()) + "." + str(threading.get_ident()) + ".tmp"
+            try:
+                with open(tmp, "w", encoding="utf-8") as f:
+                    json.dump(state, f, ensure_ascii=False, indent=2)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(tmp, CONFIG)
+            except Exception:
+                try:
+                    if os.path.exists(tmp):
+                        os.remove(tmp)
+                except Exception:
+                    pass
+                raise
+
+
+
 
     def _java_major(self):
         """Возвращает мажорную версию Java (8, 17, 21...) или 0, если не найдена."""
