@@ -19,7 +19,7 @@ jobs:
         run: pip install pyinstaller pywebview minecraft-launcher-lib
       - name: Build app
         run: |
-          python -m PyInstaller --windowed --name "Minecraft Launcher" \
+            python -m PyInstaller --windowed --name "Minecraft Launcher" --icon icon.icns \
             --add-data "index.html:." \
             --add-data "Logic:Logic" \
             --add-data "Styles:Styles" \
@@ -45,7 +45,7 @@ jobs:
         run: pip install pyinstaller pywebview minecraft-launcher-lib
       - name: Build exe
         run: |
-          python -m PyInstaller --windowed --name "MinecraftLauncher" `
+          python -m PyInstaller --windowed --name "MinecraftLauncher" --icon icon.ico `
             --add-data "index.html;." `
             --add-data "Logic;Logic" `
             --add-data "Styles;Styles" `
