@@ -1028,8 +1028,10 @@ class Api:
         if not os.path.exists(lp):
             with open(lp, "w", encoding="utf-8") as f:
                 json.dump({"profiles": {}, "selectedProfile": "", "clientToken": ""}, f)
-        java = self._java_path()
+        java = self._ensure_java(self._required_java(version))
         proc = subprocess.run([java, "-jar", installer, "--install-client", mc], cwd=mc, capture_output=True, text=True)
+
+
         try:
             os.remove(installer)
         except Exception:
@@ -1095,15 +1097,16 @@ class Api:
                 state = {"stage": "Подготовка…", "max": 1, "val": 0, "last": 0.0}
                 launch_version = self._do_install(mc, version, loader, state)
             self._ensure_russian(mc)
+            mem = int(memory)
+            xms = min(mem, max(1024, mem // 2))
             jvm_args = [
-                f"-Xmx{int(memory)}M",
-                f"-Xms{int(memory)}M",
+                f"-Xmx{mem}M",
+                f"-Xms{xms}M",
                 "-XX:+UnlockExperimentalVMOptions",
                 "-XX:+UseG1GC",
                 "-XX:+ParallelRefProcEnabled",
                 "-XX:MaxGCPauseMillis=200",
                 "-XX:+DisableExplicitGC",
-                "-XX:+AlwaysPreTouch",
                 "-XX:G1NewSizePercent=30",
                 "-XX:G1MaxNewSizePercent=40",
                 "-XX:G1HeapRegionSize=8M",
@@ -1111,11 +1114,6 @@ class Api:
                 "-XX:G1HeapWastePercent=5",
                 "-XX:G1MixedGCCountTarget=4",
                 "-XX:InitiatingHeapOccupancyPercent=15",
-                "-XX:G1MixedGCLiveThresholdPercent=90",
-                "-XX:G1RSetUpdatingPauseTimePercent=5",
-                "-XX:SurvivorRatio=32",
-                "-XX:+PerfDisableSharedMem",
-                "-XX:MaxTenuringThreshold=1",
             ]
             lwjgl_jars = None
             lwjgl_nat = None
