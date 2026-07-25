@@ -1,0 +1,32 @@
+{
+  "version": "1.0.0",
+  "notes": "Первая версия с обновлениями из GitHub",
+  "files": [
+    "main.py",
+    "index.html",
+    "Logic/achievements.js",
+    "Logic/blockmodal.js",
+    "Logic/blocks.js",
+    "Logic/boot.js",
+    "Logic/classic.js",
+    "Logic/confirm.js",
+    "Logic/core.js",
+    "Logic/dropdown.js",
+    "Logic/errorbox.js",
+    "Logic/ideas.js",
+    "Logic/livereload.js",
+    "Logic/mods.js",
+    "Logic/profilemodal.js",
+    "Logic/profiles.js",
+    "Logic/servers.js",
+    "Logic/settings.js",
+    "Logic/theme.js",
+    "Logic/viewmode.js",
+    "Styles/base.css",
+    "Styles/topbar.css",
+    "Styles/blocks.css",
+    "Styles/mods.css",
+    "Styles/classic.css",
+    "Styles/modals.css"
+  ]
+}
