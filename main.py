@@ -29,7 +29,7 @@ MODRINTH_API = "https://api.modrinth.com/v2"
 MOJANG_MANIFEST = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
 NEOFORGE_MAVEN = "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml"
 USER_AGENT = "MCLauncher/1.0 (personal launcher)"
-APP_VERSION = "3.0.3"
+APP_VERSION = "3.3.3"
 GITHUB_REPO = "wimdard/minecraft"
 GITHUB_RAW = "https://raw.githubusercontent.com/wimdard/minecraft/main"
 
@@ -1118,6 +1118,7 @@ class Api:
             lwjgl_jars = None
             lwjgl_nat = None
             intel_java = None
+            java_exe = None
             if self._needs_intel_java(version):
                 self._progress("Подготовка Intel Java (Rosetta)…", 0, 1)
                 intel_java = self._intel_java8_path()
@@ -1126,6 +1127,8 @@ class Api:
                 if fix == "swap":
                     self._progress("Подготовка библиотек для Apple Silicon…", 0, 1)
                     lwjgl_jars, lwjgl_nat = self._lwjgl_3xx_dir()
+                # авто-Java нужной версии (не для Rosetta-ветки)
+                java_exe = self._ensure_java(self._required_java(version))
             options = {
                 "username": username or "Player",
                 "uuid": str(uuid.uuid3(uuid.NAMESPACE_DNS, username or "Player")),
@@ -1133,6 +1136,8 @@ class Api:
                 "gameDirectory": mc,
                 "jvmArguments": jvm_args,
             }
+            if java_exe:
+                options["executablePath"] = java_exe
             if server:
                 options["quickPlayMultiplayer"] = server
             self._progress("Запуск игры…", 1, 1)
@@ -1141,7 +1146,6 @@ class Api:
             if lwjgl_jars:
                 cmd = self._swap_lwjgl(cmd, lwjgl_jars, lwjgl_nat)
             if intel_java:
-                # заменить java на Intel JDK 8 и обернуть в Rosetta
                 cmd[0] = intel_java
                 cmd = ["/usr/bin/arch", "-x86_64"] + cmd
             log_path = os.path.join(mc, "last_launch.log")
@@ -1151,6 +1155,7 @@ class Api:
             threading.Thread(target=self._watch_process, args=(proc, log_path, logf), daemon=True).start()
         except Exception as e:
             self._err(e)
+
 
 
 
