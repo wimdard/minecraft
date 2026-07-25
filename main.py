@@ -29,7 +29,7 @@ MODRINTH_API = "https://api.modrinth.com/v2"
 MOJANG_MANIFEST = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
 NEOFORGE_MAVEN = "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml"
 USER_AGENT = "MCLauncher/1.0 (personal launcher)"
-APP_VERSION = "2.2.2"
+APP_VERSION = "3.0.0"
 GITHUB_REPO = "wimdard/minecraft"
 GITHUB_RAW = "https://raw.githubusercontent.com/wimdard/minecraft/main"
 
@@ -581,19 +581,27 @@ class Api:
         with self._write_lock:
             os.makedirs(os.path.dirname(CONFIG), exist_ok=True)
             tmp = CONFIG + "." + str(os.getpid()) + "." + str(threading.get_ident()) + ".tmp"
-            try:
-                with open(tmp, "w", encoding="utf-8") as f:
-                    json.dump(state, f, ensure_ascii=False, indent=2)
-                    f.flush()
-                    os.fsync(f.fileno())
-                os.replace(tmp, CONFIG)
-            except Exception:
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(state, f, ensure_ascii=False, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            import time
+            for _ in range(5):
                 try:
-                    if os.path.exists(tmp):
+                    os.replace(tmp, CONFIG)
+                    return
+                except PermissionError:
+                    time.sleep(0.1)
+            try:
+                with open(CONFIG, "w", encoding="utf-8") as f:
+                    json.dump(state, f, ensure_ascii=False, indent=2)
+            finally:
+                if os.path.exists(tmp):
+                    try:
                         os.remove(tmp)
-                except Exception:
-                    pass
-                raise
+                    except Exception:
+                        pass
+
 
 
 
