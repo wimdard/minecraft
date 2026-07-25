@@ -1,0 +1,87 @@
+/* ============================================================
+   modals.css — все окна: блок, профиль, подтверждение, welcome
+   ============================================================ */
+
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); backdrop-filter:blur(3px); display:none; align-items:center; justify-content:center; z-index:100; }
+.modal-overlay.show { display:flex; }
+.modal { width:440px; max-height:88vh; overflow-y:auto; background:#14171c; border:1px solid var(--border); border-radius:16px; box-shadow:0 24px 60px rgba(0,0,0,0.7); padding:24px; }
+.modal h3 { font-size:19px; margin-bottom:18px; }
+.modal .field { margin-bottom:16px; }
+.modal .field label { display:block; font-size:13px; color:var(--muted); margin-bottom:7px; }
+.modal .field input { width:100%; padding:10px 13px; font-size:14px; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); outline:none; }
+.modal .field input::placeholder { color:var(--muted); }
+.modal .field input:focus { border-color:var(--accent); }
+
+/* Выбор типа блока */
+.type-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.type-opt { position:relative; padding:12px 8px; border:1px solid var(--border); border-radius:10px; text-align:center; cursor:pointer; transition:border-color .12s, background .12s; overflow:hidden; }
+.type-opt:hover { border-color:color-mix(in srgb, var(--accent) 50%, transparent); }
+.type-opt.active { border-color:var(--accent); background:rgba(255,255,255,0.04); }
+.type-opt.active::before { content:""; position:absolute; inset:0; background:var(--accent); opacity:0.14; pointer-events:none; border-radius:inherit; }
+.type-opt .ic { font-size:22px; position:relative; } .type-opt .nm { font-size:11px; margin-top:5px; color:var(--muted); position:relative; }
+.type-opt.active .nm { color:var(--accent); }
+
+/* Выбор иконки */
+.icon-row { display:flex; gap:6px; flex-wrap:wrap; }
+.icon-pick { position:relative; width:38px; height:38px; border:1px solid var(--border); border-radius:9px; background:var(--card); font-size:18px; cursor:pointer; overflow:hidden; }
+.icon-pick.active { border-color:var(--accent); }
+.icon-pick.active::before { content:""; position:absolute; inset:0; background:var(--accent); opacity:0.14; pointer-events:none; border-radius:inherit; }
+
+/* Выбор загрузчика (плитки) */
+.loader-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+.loader-opt { position:relative; padding:12px; border:1px solid var(--border); border-radius:10px; text-align:center; font-weight:600; font-size:14px; cursor:pointer; color:var(--text); overflow:hidden; }
+.loader-opt:hover { border-color:color-mix(in srgb, var(--accent) 50%, transparent); }
+.loader-opt.active { border-color:var(--accent); color:var(--accent); }
+.loader-opt.active::before { content:""; position:absolute; inset:0; background:var(--accent); opacity:0.14; pointer-events:none; border-radius:inherit; }
+
+/* Кнопки окон */
+.modal-actions { display:flex; gap:10px; margin-top:20px; }
+.modal-actions button { flex:1; padding:12px; border:none; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; }
+.btn-cancel { background:rgba(255,255,255,0.07); color:var(--text); } .btn-cancel:hover { background:rgba(255,255,255,0.13); }
+.btn-save { background:var(--accent); color:#fff; } .btn-save:hover { filter:brightness(1.1); }
+.btn-danger { background:var(--bad); color:#fff; } .btn-danger:hover { background:#c62828; }
+.btn-warn { background:var(--warn); color:#1a1a1a; } .btn-warn:hover { background:#c99022; }
+
+/* Окно подтверждения */
+.confirm-modal { width:400px; text-align:center; }
+.confirm-modal .cm-icon { font-size:40px; margin-bottom:10px; }
+.confirm-modal h3 { margin-bottom:10px; } .confirm-modal p { color:var(--muted); font-size:14px; line-height:1.5; }
+
+/* Экран приветствия */
+.welcome { position:fixed; inset:0; display:none; align-items:center; justify-content:center; flex-direction:column; gap:8px; background:radial-gradient(1200px 600px at 50% -10%, #1c2530 0%, var(--bg) 60%); z-index:90; }
+.welcome.show { display:flex; }
+.welcome .w-logo { font-size:48px; } .welcome h1 { font-size:26px; } .welcome p { color:var(--muted); margin-bottom:20px; }
+.welcome button { padding:13px 26px; border:none; border-radius:11px; background:var(--accent); color:#fff; font-weight:700; font-size:15px; cursor:pointer; }
+.welcome button:hover { filter:brightness(1.1); }
+
+/* Выбор аватара-картинки */
+.avatar-pick-row { display:flex; align-items:center; gap:10px; }
+.avatar-preview { width:48px; height:48px; border-radius:12px; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:800; color:#fff; overflow:hidden; flex-shrink:0; background-size:cover; background-position:center; }
+.avatar-btn { flex:1; padding:10px; border:1px solid var(--border); border-radius:10px; background:var(--card); color:var(--text); cursor:pointer; font-size:13px; font-weight:600; }
+.avatar-btn:hover { border-color:var(--accent); }
+.avatar-clear { width:38px; height:38px; border:1px solid var(--border); border-radius:10px; background:var(--card); color:var(--muted); cursor:pointer; font-size:16px; }
+.avatar-clear:hover { background:var(--bad); color:#fff; }
+
+.log-pre { text-align:left; font:11px/1.4 monospace; color:var(--muted); background:rgba(0,0,0,0.35); border:1px solid var(--border); border-radius:8px; padding:10px; max-height:340px; overflow:auto; white-space:pre-wrap; word-break:break-word; }
+
+.tn-preview {
+  width:100%; height:120px; object-fit:cover; border-radius:10px;
+  margin:4px 0 12px; background:#0003; display:block;
+}
+#tnName {
+  width:100%; box-sizing:border-box; padding:10px 12px; border-radius:8px;
+  border:1px solid color-mix(in srgb, var(--accent) 40%, #0000);
+  background:#0003; color:var(--text); font-size:14px; outline:none;
+}
+#tnName:focus { border-color:var(--accent); }
+
+.tn-color-row {
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; margin-bottom:12px; color:var(--text); font-size:14px;
+}
+.tn-color-row input[type="color"] {
+  width:44px; height:30px; border:none; border-radius:8px;
+  background:transparent; cursor:pointer; padding:0;
+}
+.tn-color-row input[type="color"]::-webkit-color-swatch-wrapper { padding:2px; }
+.tn-color-row input[type="color"]::-webkit-color-swatch { border:1px solid #0004; border-radius:6px; }

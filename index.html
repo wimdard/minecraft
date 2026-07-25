@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Minecraft Launcher</title>
+<link rel="stylesheet" href="Styles/base.css">
+<link rel="stylesheet" href="Styles/topbar.css">
+<link rel="stylesheet" href="Styles/blocks.css">
+<link rel="stylesheet" href="Styles/modals.css">
+<link rel="stylesheet" href="Styles/mods.css">
+<link rel="stylesheet" href="Styles/classic.css">
+</head>
+<body class="loading">
+  <div class="app-bg" id="appBg"></div>
+
+  <!-- Заставка -->
+  <div class="splash" id="splash">
+    <div class="splash-bg" id="splashBg"></div>
+    <div class="splash-cubes">
+      <img src="Minecraft_blocks/grass_block.png" alt="">
+      <img src="Minecraft_blocks/diamond_block.png" alt="">
+      <img src="Minecraft_blocks/gold_block.png" alt="">
+      <img src="Minecraft_blocks/TNT.png" alt="">
+      <img src="Minecraft_blocks/crafting_table.png" alt="">
+      <img src="Minecraft_blocks/emerald_block.png" alt="">
+      <img src="Minecraft_blocks/cobblestone.png" alt="">
+      <img src="Minecraft_blocks/dirt_block.png" alt="">
+      <img src="Minecraft_blocks/redstone_block.png" alt="">
+      <img src="Minecraft_blocks/oak_planks.png" alt="">
+    </div>
+    <div class="splash-inner">
+      <div class="splash-logo">⛏</div>
+      <div class="splash-title">Minecraft Launcher</div>
+      <div class="splash-bar"><div class="splash-fill"></div></div>
+      <div class="splash-hint" id="splashHint">Загрузка…</div>
+    </div>
+  </div>
+
+  <div class="topbar">
+    <div class="logo">⛏ Minecraft</div>
+    <div class="tabs">
+      <button class="tab active" data-tab="home">Главная</button>
+      <button class="tab" data-tab="mods">Контент</button>
+      <button class="tab beta-feature" data-tab="datapacks">Датапаки <span class="beta">beta</span></button>
+        <button class="tab" data-tab="ideas">Проекты</button>
+        <button class="tab" data-tab="ach">Достижения</button>
+
+
+    </div>
+    <div class="profile-wrap" id="profileWrap">
+      <button class="profile-btn" id="profileBtn">
+        <span class="profile-avatar" id="profileAvatar">?</span>
+        <span class="profile-name" id="profileNameTop">—</span>
+        <span class="profile-caret">▼</span>
+      </button>
+      <div class="profile-menu" id="profileMenu">
+        <div class="pm-section-title">Профили</div>
+        <div class="pm-list" id="pmList"></div>
+        <button class="pm-add" id="pmAdd">+ Новый профиль</button>
+      </div>
+    </div>
+        <div class="settings-wrap" id="settingsWrap">
+      <button id="topSettings" class="top-btn">⚙ Настройки</button>
+      <div class="settings-panel" id="settingsPanel">
+        <div class="pm-section-title">Профиль</div>
+        <div class="pm-field"><label>Имя профиля</label><input type="text" id="setName"></div>
+        <div class="pm-field"><label>Выделяемая память</label>
+          <div class="pm-range-row"><input type="range" id="setMemory" min="1024" step="64"><span class="pm-range-val" id="memVal">4096 МБ</span></div>
+          <div class="pm-mem-status ok" id="memStatus">Норма</div>
+          <div class="pm-hint" id="ramHint">—</div>
+        </div>
+
+        <div class="pm-divider"></div>
+        <div class="pm-section-title">Вид</div>
+        <div class="view-toggle" id="viewToggle">
+          <button data-view="blocks" class="active">🧩 Блоки</button>
+          <button data-view="classic">▶ Классика</button>
+        </div>
+
+        <div class="pm-divider"></div>
+        <div class="pm-section-title">Акцент</div>
+        <div class="theme-row" id="themeRow"></div>
+        <div class="pm-section-title" style="margin-top:12px;">Свои <button class="add-theme-btn" id="addThemeBtn">＋</button></div>
+        <div class="theme-row" id="customThemeRow"></div>
+
+          <div class="beta-feature">
+
+          <div class="pm-section-title" style="margin-top:12px;">Тема оформления <span class="beta">beta</span></div>
+          <div class="skin-row" id="skinRow">
+            <button class="skin-chip active" data-skin="">Обычная</button>
+            <button class="skin-chip" data-skin="nether">Незер</button>
+            <button class="skin-chip" data-skin="end">Край</button>
+            <button class="skin-chip" data-skin="ocean">Океан</button>
+            <button class="skin-chip" data-skin="cave">Пещера</button>
+          </div>
+        </div>
+
+
+        <label class="check-row" style="margin-top:12px;">
+          <span class="check-box" id="panoramaCheck"></span>
+          <span>Панорама на фоне</span>
+        </label>
+        <label class="check-row" style="margin-top:8px;">
+          <span class="check-box" id="betaCheck"></span>
+          <span>Показывать бета-функции</span>
+        </label>
+
+        <div class="pm-divider"></div>
+        <div class="pm-section-title">Установленные версии</div>
+        <div class="ver-list" id="verList"><div class="ver-empty">Загрузка…</div></div>
+        <button class="folder-btn" id="openFolderBtn">📁 Открыть папку игры</button>
+
+        <div class="pm-divider"></div>
+        <button class="pm-add" id="reloadBtn" style="border-style:solid;border-color:var(--accent);color:var(--accent);">🔄 Обновить лаунчер</button>
+      </div>
+    </div>
+    <button id="editBtn" title="Режим редактирования">✏️</button>
+    <button id="addBtn">+ Блок</button>
+  </div>
+
+
+  <!-- Главная (блоки) -->
+  <div class="page active" id="page-home"><div class="grid" id="grid"><div class="surface" id="surface"></div></div></div>
+
+  <!-- Классический вид -->
+  <div class="classic" id="classicView">
+    <div class="classic-top"></div>
+    <div class="classic-center">
+      <div class="classic-logo">⛏</div>
+      <div class="classic-title" id="clTitle">Minecraft</div>
+    </div>
+    <div class="classic-bottom">
+      <div class="classic-spacer"></div>
+      <div class="classic-primary">
+        <div class="classic-mem">
+          <div class="classic-mem-top"><span id="clMemVal">4096 МБ</span><span id="clMemNote" class="ok">Норма</span></div>
+          <div class="classic-mem-track"><div class="classic-mem-fill" id="clMemFill"></div></div>
+        </div>
+        <div class="classic-play-row">
+          <div class="classic-side">
+            <label>Ник</label>
+            <input type="text" id="clUser" class="classic-input" placeholder="Player">
+          </div>
+          <button class="classic-play" id="clPlay">▶ ИГРАТЬ</button>
+          <div class="classic-side">
+            <label>Версия · Загрузчик</label>
+            <div class="vl" id="vlWrap">
+              <div class="vl-trigger" id="vlTrigger"><span id="vlVal">1.20.1 · Vanilla</span><span class="arw">▼</span></div>
+              <div class="vl-menu" id="vlMenu"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="classic-server">
+        <label>Сервер</label>
+        <div class="vl" id="svWrap">
+          <div class="vl-trigger" id="svTrigger"><span id="svVal">Без сервера</span><span class="arw">▼</span></div>
+          <div class="vl-menu" id="svMenu"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Моды -->
+  <div class="page" id="page-mods">
+    <div class="mods-typebar" id="modsTypebar">
+      <button class="mtype active" data-type="mod">🧩 Моды</button>
+      <button class="mtype" data-type="resourcepack">🎨 Текстурпаки</button>
+      <button class="mtype" data-type="shader">✨ Шейдеры</button>
+      <button class="mtype" data-type="modpack">📦 Модпаки</button>
+    </div>
+    <div class="mods-header">
+      <div class="mods-switch"><button id="swSearch" class="active">Поиск</button><button id="swInstalled">Установленные</button><button id="swFav">♥ Избранное</button></div>
+      <div class="mods-search" id="searchWrap"><input type="text" id="modQuery" placeholder="Поиск на Modrinth…"></div>
+      <div class="sort-bar" id="sortBar">
+        <button class="sort-chip active" data-sort="relevance">По релевантности</button>
+        <button class="sort-chip" data-sort="downloads">Популярные</button>
+        <button class="sort-chip" data-sort="follows">Залайканные</button>
+        <button class="sort-chip" data-sort="newest">Новые</button>
+        <button class="sort-chip" data-sort="updated">Обновлённые</button>
+      </div>
+      <div class="view-switch" id="viewSwitch">
+        <button class="vs-btn active" data-vw="list" title="Список">☰</button>
+        <button class="vs-btn" data-vw="grid" title="Сетка">▦</button>
+      </div>
+      <button class="mod-import-btn" id="modImport" title="Импорт из файла">📥 Импорт</button>
+    </div>
+    <div class="mods-body">
+      <div class="mods-cats" id="modsCats"><h4>Категории</h4></div>
+      <div class="mods-list" id="modsList"><div class="mods-status">Введите запрос или выберите категорию</div></div>
+    </div>
+  </div>
+
+  <!-- Датапаки (beta-заглушка) -->
+  <div class="page" id="page-datapacks">
+    <div class="beta-stub">
+      <div class="beta-ic">📦</div>
+      <h2>Датапаки <span class="beta">beta</span></h2>
+      <p>Раздел в разработке — скоро появится поиск и установка датапаков.</p>
+    </div>
+  </div>
+
+    <!-- Идеи построек -->
+  <div class="page" id="page-ideas">
+    <div class="ideas-header">
+      <h3>💡 Идеи построек</h3>
+      <div class="ideas-filters" id="ideasFilters"></div>
+      <button class="ideas-add-btn" id="ideasAdd">+ Добавить идею</button>
+    </div>
+    <div class="ideas-grid" id="ideasGrid"></div>
+  </div>
+
+  <div class="page" id="page-ach">
+    <div class="ach-header">
+      <h3>Достижения</h3>
+      <span class="ach-count" id="achProgress">0 / 0</span>
+    </div>
+    <div class="ach-grid" id="achGrid"></div>
+  </div>
+
+
+  <!-- Первый запуск -->
+  <div class="welcome" id="welcome">
+    <div class="w-logo">⛏</div><h1>Добро пожаловать</h1><p>Создай первый профиль, чтобы начать</p>
+    <button id="welcomeCreate">Создать профиль</button>
+  </div>
+
+  <!-- Окно: блок -->
+  <div class="modal-overlay" id="blockModal">
+    <div class="modal">
+      <h3 id="blockModalTitle">Новый блок</h3>
+      <div class="field"><label>Тип блока</label><div class="type-grid" id="typeGrid"></div></div>
+      <div class="field"><label>Название</label><input type="text" id="mTitle" placeholder="Название блока"></div>
+      <div class="field" id="mBodyField"><label>Описание / текст</label><input type="text" id="mBody" placeholder="Описание"></div>
+      <div class="field" id="mUrlField" style="display:none;"><label>Ссылка (URL)</label><input type="text" id="mUrl" placeholder="https://…"></div>
+      <div class="field"><label>Иконка</label><div class="icon-row" id="iconRow"></div></div>
+      <div class="modal-actions"><button class="btn-cancel" id="mCancel">Отмена</button><button class="btn-save" id="mSave">Создать</button></div>
+    </div>
+  </div>
+  
+    <div class="modal-overlay" id="ideaModal">
+    <div class="modal idea-modal">
+      <h3 id="ideaModalTitle">Новая идея</h3>
+      <div class="idea-gallery" id="ideaGallery"></div>
+      <div class="idea-photo-btns">
+        <button class="avatar-btn" id="ideaPickBtn">📁 С диска</button>
+        <button class="avatar-btn" id="ideaUrlBtn">🔗 По ссылке</button>
+      </div>
+      <div class="field"><label>Название</label><input type="text" id="ideaName" placeholder="Например: Замок на холме"></div>
+      <div class="field"><label>Описание</label><textarea id="ideaDesc" rows="4" placeholder="Что построить, из чего…"></textarea></div>
+      <div class="field"><label>Категория</label>
+        <div class="idea-tags" id="ideaTags">
+          <button data-tag="Дом">🏠 Дом</button>
+          <button data-tag="Ферма">🚜 Ферма</button>
+          <button data-tag="Редстоун">⚡ Редстоун</button>
+          <button data-tag="Декор">🎨 Декор</button>
+          <button data-tag="Эпик">🏰 Эпик</button>
+          <button data-tag="Город">🏙 Город</button>
+          <button data-tag="Храм">⛩ Храм</button>
+          <button data-tag="Мост">🌉 Мост</button>
+          <button data-tag="Башня">🗼 Башня</button>
+          <button data-tag="Корабль">🚢 Корабль</button>
+          <button data-tag="Подземелье">🕳 Подземелье</button>
+          <button data-tag="Природа">🌳 Природа</button>
+          <button data-tag="Развлечения">🎢 Развлечения</button>
+          <button data-tag="Арена">🏟 Арена</button>
+          <button data-tag="Транспорт">🚉 Транспорт</button>
+        </div>
+      </div>
+      <div class="field"><label>Сложность</label>
+        <div class="idea-diff" id="ideaDiff">
+          <button data-diff="Легко">Легко</button>
+          <button data-diff="Средне">Средне</button>
+          <button data-diff="Сложно">Сложно</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="ideaCancel">Отмена</button>
+        <button class="fav-btn-lg" id="ideaPinterest" title="Найти на Pinterest">🔍</button>
+        <button class="btn-save" id="ideaSave">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+     <div class="modal-overlay" id="ideaViewModal">
+    <div class="modal idea-view-modal">
+      <button class="mi-close" id="ideaViewClose">×</button>
+      <div class="iv-carousel">
+        <div class="iv-track" id="ivTrack"></div>
+        <button class="iv-nav prev" id="ivPrev">‹</button>
+        <button class="iv-nav next" id="ivNext">›</button>
+        <div class="iv-dots" id="ivDots"></div>
+      </div>
+      <div class="iv-content">
+        <h3 id="ivTitle">—</h3>
+        <div class="iv-meta" id="ivMeta"></div>
+        <p class="iv-desc" id="ivDesc"></p>
+        <div class="modal-actions">
+          <button class="btn-cancel" id="ivEdit">✎ Изменить</button>
+          <button class="fav-btn-lg" id="ivPinterest" title="Найти на Pinterest">🔍</button>
+          <button class="btn-save" id="ivClose2">Закрыть</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+
+    <div class="modal-overlay" id="urlModal">
+    <div class="modal">
+      <h3>🔗 Ссылка на картинку</h3>
+      <button class="url-paste-big" id="urlPasteBig">
+        <span class="upb-icon">📋</span>
+        <span class="upb-text">Вставить из буфера</span>
+        <span class="upb-hint">кликни, чтобы вставить скопированную ссылку</span>
+      </button>
+      <div class="url-preview" id="urlPreview"></div>
+      <div class="url-manual">
+        <label>Или вставь вручную</label>
+        <input type="text" id="urlInput" placeholder="https://…/image.jpg">
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="urlCancel">Отмена</button>
+        <button class="btn-save" id="urlOk">Добавить</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Окно: профиль -->
+  <div class="modal-overlay" id="profileModal">
+    <div class="modal">
+      <h3>Новый профиль</h3>
+      <div class="field"><label>Имя профиля</label><input type="text" id="npName" placeholder="Например: Выживание"></div>
+      <div class="field"><label>Аватар</label>
+        <div class="avatar-pick-row">
+          <div class="avatar-preview" id="npAvatarPreview">?</div>
+          <button type="button" class="avatar-btn" id="npAvatarBtn">Выбрать картинку</button>
+          <button type="button" class="avatar-clear" id="npAvatarClear" title="Убрать">×</button>
+        </div>
+      </div>
+      <div class="field"><label>Никнейм в игре</label><input type="text" id="npUser" placeholder="Player"></div>
+      <div class="field"><label>Загрузчик</label><div class="loader-grid" id="npLoaderGrid"></div></div>
+      <div class="field"><label>Версия Minecraft</label>
+        <div class="dd" id="ddNpVersion"><div class="dd-trigger" id="ddNpVersionTrigger"><span id="ddNpVersionVal">1.20.1</span><span class="arw">▼</span></div><div class="dd-menu" id="ddNpVersionMenu"></div></div>
+      </div>
+      <div class="modal-actions"><button class="btn-cancel" id="npCancel">Отмена</button><button class="btn-save" id="npSave">Создать</button></div>
+    </div>
+  </div>
+
+  <!-- Окно: информация о моде -->
+  <div class="modal-overlay" id="modInfoModal">
+    <div class="modal mod-info-modal">
+      <button class="mi-close" id="miClose">×</button>
+      <div class="mi-head">
+        <img class="mi-icon" id="miIcon" src="">
+        <div class="mi-head-text">
+          <h3 id="miTitle">—</h3>
+          <div class="mi-meta" id="miMeta"></div>
+        </div>
+      </div>
+      <div class="mi-cats" id="miCats"></div>
+      <div class="mi-gallery" id="miGallery"></div>
+      <p class="mi-desc" id="miDesc"></p>
+      <div class="mi-versions" id="miVersions"></div>
+      <div class="mi-links" id="miLinks"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" id="miCancel">Закрыть</button>
+        <button class="fav-btn-lg" id="miFav" title="В избранное">♥</button>
+        <button class="btn-save" id="miInstall">Установить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Оверлей запуска -->
+  <div class="launch-overlay" id="launchOverlay">
+    <div class="launch-box">
+      <div class="launch-ic">⛏</div>
+      <div class="launch-stage" id="launchStage">Подготовка…</div>
+      <div class="launch-track"><div class="launch-fill" id="launchFill"></div></div>
+      <div class="launch-pct" id="launchPct">0%</div>
+    </div>
+  </div>
+
+  <!-- Окно: подтверждение -->
+  <div class="modal-overlay" id="confirmModal">
+    <div class="modal confirm-modal">
+      <div class="cm-icon" id="cmIcon">⚠️</div><h3 id="cmTitle">Подтверждение</h3><p id="cmText">—</p>
+      <div class="modal-actions"><button class="btn-cancel" id="cmCancel">Отмена</button><button class="btn-save" id="cmOk">Ок</button></div>
+    </div>
+  </div>
+
+    <div class="modal-overlay" id="themeNameModal">
+    <div class="modal">
+      <h3>Своя тема</h3>
+      <img id="tnPreview" class="tn-preview" alt="">
+      <label class="tn-color-row">
+        <span>Цвет интерфейса</span>
+        <input type="color" id="tnColor" value="#4caf50">
+      </label>
+      <input type="text" id="tnName" placeholder="Название темы" maxlength="24">
+      <div class="modal-actions">
+        <button class="btn-cancel" id="tnCancel">Отмена</button>
+        <button class="btn-save" id="tnSave">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+
+  <script src="Logic/errorbox.js"></script>
+  <script src="Logic/core.js"></script>
+  <script src="Logic/dropdown.js"></script>
+  <script src="Logic/confirm.js"></script>
+  <script src="Logic/profiles.js"></script>
+  <script src="Logic/blocks.js"></script>
+  <script src="Logic/blockmodal.js"></script>
+  <script src="Logic/profilemodal.js"></script>
+  <script src="Logic/livereload.js"></script>
+  <script src="Logic/mods.js"></script>
+  <script src="Logic/theme.js"></script>
+  <script src="Logic/viewmode.js"></script>
+  <script src="Logic/classic.js"></script>
+  <script src="Logic/servers.js"></script>
+  <script src="Logic/settings.js"></script>
+  <script src="Logic/boot.js"></script>
+  <script src="Logic/ideas.js"></script>
+  <script src="Logic/achievements.js"></script>
+
+
+</body>
+</html>

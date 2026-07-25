@@ -1,0 +1,228 @@
+
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --accent:#6b7280; --accent-dark:#374151;
+  --text: #e8eaed; --muted: #8a909a; --warn: #e0a030; --bad: #e53935;
+  --cell: 40px; --pad: 28px; --seam: 5px;
+}
+html { overscroll-behavior:none; background:#0f1114;}
+body { font-family: -apple-system, "SF Pro Display", "Segoe UI", system-ui, sans-serif; background: radial-gradient(1200px 600px at 70% -10%, #1c2530 0%, var(--bg) 60%); color: var(--text); height: 100vh; overflow: hidden; overscroll-behavior:none; -webkit-font-smoothing: antialiased;  touch-action:pan-y;}
+.page { display: none; height: calc(100vh - 60px); }
+.page.active { display: block; }
+
+/* ── Заставка ── */
+.splash { position:fixed; inset:0; z-index:99999; display:flex; align-items:center; justify-content:center;
+  background:radial-gradient(1200px 700px at 50% 30%, #1e2a38, #0c0e11 72%);
+  overflow:hidden; transition:opacity .6s ease; }
+.splash.hide { opacity:0; pointer-events:none; }
+
+body.loading .topbar, body.loading .page, body.loading .classic, body.loading .welcome { visibility:hidden; }
+body.loading { overflow:hidden; }
+.splash-logo, .splash-fill { transition:filter .3s ease, background .3s ease; }
+.splash-inner { position:relative; z-index:2; text-align:center; animation:splashRise .8s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes splashRise { from { opacity:0; transform:translateY(20px);} to { opacity:1; transform:translateY(0);} }
+.splash-logo { font-size:92px; animation:splashPulse 1.8s ease-in-out infinite; filter:drop-shadow(0 12px 34px color-mix(in srgb, var(--accent) 55%, transparent)); }
+@keyframes splashPulse { 0%,100%{ transform:translateY(0) rotate(-4deg) scale(1);} 50%{ transform:translateY(-10px) rotate(4deg) scale(1.06);} }
+.splash-title { font-size:28px; font-weight:800; letter-spacing:.5px; margin-top:14px; color:#fff; text-shadow:0 2px 20px rgba(0,0,0,.5); }
+.splash-bar { width:240px; height:5px; border-radius:5px; background:rgba(255,255,255,0.08); margin:24px auto 0; overflow:hidden; }
+.splash-fill { height:100%; width:45%; border-radius:5px; background:linear-gradient(90deg, transparent, var(--accent), transparent); animation:splashSlide 1.3s ease-in-out infinite; }
+@keyframes splashSlide { 0%{ transform:translateX(-140%);} 100%{ transform:translateX(360%);} }
+.splash-hint { font-size:12px; color:var(--muted); margin-top:16px; }
+@keyframes bgDrift { from { transform:scale(1.06) translateX(-1.5%);} to { transform:scale(1.14) translateX(1.5%);} }
+
+/* летающие блоки Minecraft на фоне */
+.splash-cubes { position:absolute; inset:0; z-index:1; }
+.splash-cubes img {
+  position:absolute; bottom:-80px; width:52px; height:52px;
+  image-rendering:pixelated;                 /* чёткие пиксели, без размытия */
+  filter:drop-shadow(0 8px 16px rgba(0,0,0,.45));
+  opacity:0;
+  animation:cubeFloat linear infinite;
+}
+@keyframes cubeFloat {
+  0%   { transform:translateY(0) rotate(0deg); opacity:0; }
+  12%  { opacity:.95; }
+  88%  { opacity:.95; }
+  100% { transform:translateY(-118vh) rotate(200deg); opacity:0; }
+}
+.splash-cubes img:nth-child(1){ left:7%;  width:60px; animation-duration:8s;   animation-delay:0s; }
+.splash-cubes img:nth-child(2){ left:19%; width:82px; animation-duration:10s;  animation-delay:1.4s; }
+.splash-cubes img:nth-child(3){ left:31%; width:56px; animation-duration:7s;   animation-delay:.6s; }
+.splash-cubes img:nth-child(4){ left:43%; width:74px; animation-duration:9.5s; animation-delay:2.2s; }
+.splash-cubes img:nth-child(5){ left:54%; width:64px; animation-duration:8.5s; animation-delay:.9s; }
+.splash-cubes img:nth-child(6){ left:64%; width:88px; animation-duration:11s;  animation-delay:1.8s; }
+.splash-cubes img:nth-child(7){ left:74%; width:58px; animation-duration:7.5s; animation-delay:.3s; }
+.splash-cubes img:nth-child(8){ left:83%; width:76px; animation-duration:10.5s;animation-delay:2.6s; }
+.splash-cubes img:nth-child(9){ left:91%; width:66px; animation-duration:9s;   animation-delay:1.1s; }
+.splash-cubes img:nth-child(10){ left:14%; width:70px; animation-duration:12s; animation-delay:3.2s; }
+
+.splash-bg {
+  position:absolute; inset:-40px; z-index:0;
+  background-size:cover; background-position:center;
+  filter:blur(3px) brightness(.65);
+  animation:bgDrift 30s ease-in-out infinite alternate;
+}
+
+
+/* Фон-панорама (везде) */
+.app-bg {
+  position:fixed;
+  top:0; left:0;
+  width:100vw; height:100vh;
+  background-size:cover; background-position:center; background-repeat:no-repeat;
+  filter:brightness(.22);
+  opacity:0;
+  transform:scale(1.04);
+  pointer-events:none;      /* важно: клики проходят сквозь фон */
+  transition:opacity 1.2s ease, transform 1.2s ease;
+  z-index:-1;               /* фон строго ЗА всем */
+}
+body.show-panorama .app-bg { opacity:1; transform:scale(1); }
+
+/* страницы и топбар — поверх фона */
+.topbar { position:relative; z-index:50; }
+.page { position:relative; z-index:1; }
+#page-mods { position:relative; z-index:1; }
+
+
+.splash-bg {
+  position:absolute;
+  top:0; left:0; width:100%; height:100%;
+  background-size:cover; background-position:center;
+  filter:blur(2px) brightness(.16);
+  opacity:0;
+  animation:splashBgIn 1.4s ease forwards;   /* мягкое проявление заставки */
+}
+@keyframes splashBgIn {
+  from { opacity:0; transform:scale(1.06); }
+  to   { opacity:1; transform:scale(1); }
+}
+
+/* Заставка уезжает вверх с затуханием */
+.splash { transition:opacity .6s ease, transform .6s cubic-bezier(.6,0,.4,1); }
+.splash.hide { opacity:0; transform:translateY(-100%); pointer-events:none; }
+
+/* Интерфейс проявляется, когда заставка уходит */
+.app-enter .topbar,
+.app-enter .page.active,
+.app-enter .classic {
+  animation:appEnter .7s cubic-bezier(.2,.8,.2,1) both;
+}
+@keyframes appEnter {
+  from { opacity:0; transform:translateY(16px) scale(.99); }
+  to   { opacity:1; transform:translateY(0) scale(1); }
+}
+
+
+body.show-panorama .app-bg { display:block; }
+/* делаем фоны страниц полупрозрачными, чтобы панорама просвечивала */
+body.show-panorama .grid { background:rgba(15,17,20,0.35) !important; }
+body.show-panorama #page-mods,
+body.show-panorama #page-datapacks { background:rgba(15,17,20,0.55); }
+body.show-panorama .classic { background:transparent; }
+
+.app-bg {
+  position:fixed;
+  top:0; left:0;
+  width:100vw; height:100vh;
+  background-size:cover; background-position:center; background-repeat:no-repeat;
+  filter:brightness(.22);
+  opacity:0;
+  transform:scale(1.08);        /* запас для сдвига параллакса */
+  pointer-events:none;
+  transition:opacity 1.2s ease; /* transform больше не в transition — им управляет JS */
+  z-index:-1;
+  will-change:transform;
+}
+body.show-panorama .app-bg { opacity:1; }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* Minecraft-темы оформления (акцент — отдельно) */
+/* Пиксельные CSS-текстуры тем Minecraft */
+body.skin-nether, body.skin-end, body.skin-ocean, body.skin-cave {
+  background-attachment:fixed;
+}
+
+/* ============================================================
+   ТЕМЫ ОФОРМЛЕНИЯ — BETA (CSS-текстуры)
+   Когда нарисуешь картинки: положи в thema_skin/ и
+   раскомментируй блок «FINAL» ниже — он перекроет бету.
+   ============================================================ */
+
+/* --- BETA: CSS-текстуры (работает сейчас) --- */
+body.skin-nether { /* ...твои текущие правила незера... */ }
+body.skin-end    { /* ... */ }
+body.skin-ocean  { /* ... */ }
+body.skin-cave   { /* ... */ }
+
+/* --- FINAL: картинки (раскомментируй, когда нарисуешь) ---
+body.skin-nether { background:linear-gradient(rgba(20,8,8,.82),rgba(20,8,8,.82)), url("thema_skin/bg_nether.png"); background-size:96px 96px; image-rendering:pixelated; }
+body.skin-end    { background:linear-gradient(rgba(14,10,26,.82),rgba(14,10,26,.82)), url("thema_skin/bg_end.png"); background-size:96px 96px; image-rendering:pixelated; }
+body.skin-ocean  { background:linear-gradient(rgba(10,23,32,.80),rgba(10,23,32,.80)), url("thema_skin/bg_ocean.png"); background-size:96px 96px; image-rendering:pixelated; }
+body.skin-cave   { background:linear-gradient(rgba(17,17,20,.85),rgba(17,17,20,.85)), url("thema_skin/bg_cave.png"); background-size:96px 96px; image-rendering:pixelated; }
+*/
+
+
+
+
+
+
+
+/* Фиксированная сетка тем — чипы не перемещаются */
+.skin-row {
+  display:grid;
+  grid-template-columns:repeat(3, 1fr);   /* 3 в ряд, фиксированные колонки */
+  gap:6px;
+  padding:2px 2px 6px;
+}
+.skin-chip {
+  padding:7px 10px;
+  border:2px solid var(--border);
+  border-radius:8px;
+  background:var(--card);
+  color:var(--muted);
+  cursor:pointer;
+  font-size:12px;
+  font-weight:600;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  text-align:center;
+  box-sizing:border-box;
+}
+.skin-chip:hover { color:var(--text); }
+.skin-chip.active {
+  color:var(--text);
+  border-color:var(--accent);
+  background:color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+
+body.skin-switching * { transition:none !important; }
+
+.add-theme-btn {
+  margin-left:8px; width:22px; height:22px; border-radius:6px;
+  border:1px solid var(--accent); background:transparent; color:var(--accent);
+  cursor:pointer; font-size:14px; line-height:1; vertical-align:middle;
+}
+.add-theme-btn:hover { background:color-mix(in srgb, var(--accent) 16%, transparent); }
+.theme-dot { position:relative; }
+.theme-dot-x {
+  position:absolute; top:-6px; right:-6px; width:15px; height:15px;
+  border-radius:50%; background:#000; color:#fff; font-size:11px;
+  line-height:15px; text-align:center; display:none; cursor:pointer;
+}
+.theme-dot:hover .theme-dot-x { display:block; }
