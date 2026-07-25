@@ -16,7 +16,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install deps
-        run: pip install pyinstaller pywebview minecraft-launcher-lib
+        run: pip install pyinstaller pywebview minecraft-launcher-lib certifi
       - name: Build app
         run: |
             python -m PyInstaller --windowed --name "Minecraft Launcher" --icon icon.icns \
@@ -42,15 +42,15 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install deps
-        run: pip install pyinstaller pywebview minecraft-launcher-lib
+        run: pip install pyinstaller pywebview minecraft-launcher-lib certifi
       - name: Build exe
         run: |
           python -m PyInstaller --windowed --name "MinecraftLauncher" --icon icon.ico `
             --add-data "index.html;." `
             --add-data "Logic;Logic" `
             --add-data "Styles;Styles" `
-            --add-data "Panoramas;Panoramas" `
             --add-data "Minecraft_blocks;Minecraft_blocks" `
+            --add-data "Panoramas;Panoramas" `
             --add-data "icon.png;." `
             main.py
       - name: Zip exe
