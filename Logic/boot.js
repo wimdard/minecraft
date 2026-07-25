@@ -4,6 +4,8 @@ function boot(loaded) {
   document.body.classList.add("tab-home");
   Theme.init();
     if (typeof Blocks !== "undefined") Blocks.initEdit();
+      if (typeof Updates !== "undefined") Updates.init();
+
   Theme.ready();
   ViewMode.init();
   if (hasProfile()) Profiles.load();

@@ -73,6 +73,8 @@ document.querySelectorAll(".tab").forEach((tab) => {
     if (tab.dataset.tab === "mods") Mods.onOpen();
     if (tab.dataset.tab === "ideas") Ideas.onOpen();
     if (tab.dataset.tab === "ach") Achievements.onOpen();
+    if (tab.dataset.tab === "updates") Updates.onOpen();
+
 
 
   });

@@ -44,6 +44,8 @@
       <button class="tab beta-feature" data-tab="datapacks">Датапаки <span class="beta">beta</span></button>
         <button class="tab" data-tab="ideas">Проекты</button>
         <button class="tab" data-tab="ach">Достижения</button>
+        <button class="tab" data-tab="updates">Обновления</button>
+
 
 
     </div>
@@ -199,6 +201,21 @@
       <p>Раздел в разработке — скоро появится поиск и установка датапаков.</p>
     </div>
   </div>
+
+    <div class="page" id="page-updates">
+    <div class="upd-wrap">
+      <div class="upd-icon">🔄</div>
+      <h2>Обновления</h2>
+      <div class="upd-cur">Текущая версия: <b id="updCurrent">—</b></div>
+      <div class="upd-status" id="updStatus">Нажми «Проверить», чтобы узнать о новой версии.</div>
+      <div class="upd-notes" id="updNotes"></div>
+      <div class="upd-actions">
+        <button class="upd-btn" id="updCheckBtn">Проверить обновления</button>
+        <button class="upd-btn primary" id="updDownloadBtn" style="display:none;">⬇ Скачать обновление</button>
+      </div>
+    </div>
+  </div>
+
 
     <!-- Идеи построек -->
   <div class="page" id="page-ideas">
@@ -426,6 +443,8 @@
   <script src="Logic/boot.js"></script>
   <script src="Logic/ideas.js"></script>
   <script src="Logic/achievements.js"></script>
+    <script src="Logic/updates.js"></script>
+
 
 
 </body>

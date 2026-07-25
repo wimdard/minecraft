@@ -22,6 +22,9 @@ MODRINTH_API = "https://api.modrinth.com/v2"
 MOJANG_MANIFEST = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
 NEOFORGE_MAVEN = "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml"
 USER_AGENT = "MCLauncher/1.0 (personal launcher)"
+APP_VERSION = "1.0.0"
+GITHUB_RAW = "https://raw.githubusercontent.com/wimdard/minecraft/main"
+
 
 _window = None
 
@@ -149,6 +152,49 @@ def _open_path(path):
 
 
 class Api:
+
+    def app_version(self):
+        return APP_VERSION
+
+    def check_update(self):
+        try:
+            data = http_get_json(f"{GITHUB_RAW}/version.json")
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+        latest = data.get("version", "")
+        has = self._version_gt(latest, APP_VERSION)
+        return {"ok": True, "current": APP_VERSION, "latest": latest,
+                "hasUpdate": has, "notes": data.get("notes", ""),
+                "files": data.get("files", [])}
+
+    def _version_gt(self, a, b):
+        def parts(v): return [int(x) for x in re.findall(r"\d+", v)]
+        pa, pb = parts(a), parts(b)
+        return pa > pb
+
+    def apply_update(self):
+        threading.Thread(target=self._update_worker, daemon=True).start()
+        return {"ok": True}
+
+    def _update_worker(self):
+        try:
+            data = http_get_json(f"{GITHUB_RAW}/version.json")
+            files = data.get("files", [])
+            base = project_dir()
+            total = len(files)
+            for i, rel in enumerate(files):
+                self._progress(f"Обновление: {rel}", i, total)
+                url = f"{GITHUB_RAW}/{rel}"
+                dest = os.path.join(base, rel)
+                os.makedirs(os.path.dirname(dest), exist_ok=True) if os.path.dirname(rel) else None
+                tmp = dest + ".new"
+                http_download(url, tmp)
+                os.replace(tmp, dest)
+            self._progress("__done__", total, total)
+            if _window:
+                _window.evaluate_js("window.onUpdateDone && window.onUpdateDone()")
+        except Exception as e:
+            self._err(e)
 
 
     def _needs_intel_java(self, version):
