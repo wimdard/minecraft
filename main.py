@@ -15,7 +15,7 @@ import uuid
 import minecraft_launcher_lib
 
 
-# ▶ DEV=True — следим за файлами и предлагаем перезагрузку. Перед упаковкой поставь False!
+## ▶ DEV=True — следим за файлами и предлагаем перезагрузку. Перед упаковкой поставь False!
 DEV = False
 
 MODRINTH_API = "https://api.modrinth.com/v2"
