@@ -22,7 +22,6 @@ jobs:
             --add-data "Styles:Styles" \
             --add-data "Panoramas:Panoramas" \
             --add-data "Minecraft_blocks:Minecraft_blocks" \
-            --add-data "thema_skin:thema_skin" \
             --add-data "icon.png:." \
             main.py
       - name: Zip app
@@ -49,7 +48,6 @@ jobs:
             --add-data "Styles;Styles" `
             --add-data "Panoramas;Panoramas" `
             --add-data "Minecraft_blocks;Minecraft_blocks" `
-            --add-data "thema_skin;thema_skin" `
             --add-data "icon.png;." `
             main.py
       - name: Zip exe
