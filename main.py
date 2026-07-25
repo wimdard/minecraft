@@ -29,7 +29,7 @@ MODRINTH_API = "https://api.modrinth.com/v2"
 MOJANG_MANIFEST = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
 NEOFORGE_MAVEN = "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml"
 USER_AGENT = "MCLauncher/1.0 (personal launcher)"
-APP_VERSION = "3.0.0"
+APP_VERSION = "3.0.1"
 GITHUB_REPO = "wimdard/minecraft"
 GITHUB_RAW = "https://raw.githubusercontent.com/wimdard/minecraft/main"
 
@@ -38,7 +38,8 @@ _window = None
 
 def resource_path(rel):
     base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(base, rel)
+    return os.path.abspath(os.path.join(base, rel))
+
 
 
 def project_dir():
@@ -225,6 +226,82 @@ class Api:
         if not m:
             return False
         return int(m.group(1)) <= 12
+
+    def install_java(self, version):
+        """Скачивает нужную Java и запускает поток (для кнопки 'Скачать и запустить')."""
+        major = self._required_java(version)
+        threading.Thread(target=self._install_java_worker, args=(major,), daemon=True).start()
+        return {"ok": True, "major": major}
+
+    def _install_java_worker(self, major):
+        try:
+            path = self._ensure_java(major)
+            self._progress("__done__", 1, 1)
+            if _window:
+                _window.evaluate_js(f"window.onJavaReady && window.onJavaReady({json.dumps(path)})")
+        except Exception as e:
+            self._err(e)
+
+    def _ensure_java(self, major):
+        """Возвращает путь к java нужной мажорной версии. Качает Temurin, если нет."""
+        # 1) системная java подходит?
+        try:
+            sysjava = self._java_path()
+            out = subprocess.run([sysjava, "-version"], capture_output=True, text=True)
+            text = (out.stderr or "") + (out.stdout or "")
+            m = re.search(r'version "(\d+)(?:\.(\d+))?', text)
+            if m:
+                cur = int(m.group(1))
+                if cur == 1 and m.group(2):
+                    cur = int(m.group(2))
+                if cur == major:
+                    return sysjava
+        except Exception:
+            pass
+        # 2) уже скачанная?
+        base = os.path.join(data_dir(), "java", str(major))
+        os.makedirs(base, exist_ok=True)
+        def _find():
+            exe = "java.exe" if sys.platform == "win32" else "java"
+            for root, _, files in os.walk(base):
+                if os.path.basename(root) == "bin" and exe in files:
+                    return os.path.join(root, exe)
+            return None
+        found = _find()
+        if found:
+            return found
+        # 3) скачать Temurin под текущую ОС/арч
+        self._progress(f"Скачивание Java {major}…", 0, 1)
+        if sys.platform == "darwin":
+            os_name = "mac"; arch = "aarch64" if platform.machine() == "arm64" else "x64"; ext = "tar.gz"
+        elif sys.platform == "win32":
+            os_name = "windows"; arch = "x64"; ext = "zip"
+        else:
+            os_name = "linux"; arch = "x64"; ext = "tar.gz"
+        url = f"https://api.adoptium.net/v3/binary/latest/{major}/ga/{os_name}/{arch}/jdk/hotspot/normal/eclipse?project=jdk"
+        archive = os.path.join(base, f"jdk.{ext}")
+        http_download(url, archive)
+        self._progress(f"Распаковка Java {major}…", 0, 1)
+        if ext == "zip":
+            import zipfile
+            with zipfile.ZipFile(archive) as z:
+                z.extractall(base)
+        else:
+            import tarfile
+            with tarfile.open(archive, "r:gz") as t:
+                t.extractall(base)
+        try:
+            os.remove(archive)
+        except Exception:
+            pass
+        found = _find()
+        if not found:
+            raise RuntimeError(f"Не удалось установить Java {major}")
+        try:
+            os.chmod(found, 0o755)
+        except Exception:
+            pass
+        return found
 
     def _intel_java8_path(self):
         """Скачивает portable Temurin 8 x64 (Rosetta) в data_dir и возвращает путь к bin/java."""
@@ -1145,7 +1222,21 @@ def start_watcher():
 
 if __name__ == "__main__":
     api = Api()
-    _window = webview.create_window("Minecraft Launcher", resource_path("index.html"), js_api=api, width=1040, height=720, min_size=(820, 580), background_color="#0F1114", fullscreen=True)
+    html_path = resource_path("index.html")
+    if not os.path.exists(html_path):
+        # fallback: рядом с исполняемым файлом (для упакованного .exe/.app)
+        alt = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "index.html")
+        if os.path.exists(alt):
+            html_path = alt
+    _window = webview.create_window(
+        "Minecraft Launcher",
+        html_path,
+        js_api=api,
+        width=1040, height=720,
+        min_size=(820, 580),
+        background_color="#0F1114",
+        fullscreen=True,
+    )
     if DEV:
         threading.Thread(target=start_watcher, daemon=True).start()
     webview.start()
