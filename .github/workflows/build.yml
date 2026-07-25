@@ -1,0 +1,60 @@
+name: Build
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps
+        run: pip install pyinstaller pywebview minecraft-launcher-lib
+      - name: Build app
+        run: |
+          python -m PyInstaller --windowed --name "Minecraft Launcher" \
+            --add-data "index.html:." \
+            --add-data "Logic:Logic" \
+            --add-data "Styles:Styles" \
+            --add-data "Panoramas:Panoramas" \
+            --add-data "Minecraft_blocks:Minecraft_blocks" \
+            --add-data "thema_skin:thema_skin" \
+            --add-data "icon.png:." \
+            main.py
+      - name: Zip app
+        run: cd dist && ditto -c -k --keepParent "Minecraft Launcher.app" "MinecraftLauncher-mac.zip"
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/MinecraftLauncher-mac.zip
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps
+        run: pip install pyinstaller pywebview minecraft-launcher-lib
+      - name: Build exe
+        run: |
+          python -m PyInstaller --windowed --name "MinecraftLauncher" `
+            --add-data "index.html;." `
+            --add-data "Logic;Logic" `
+            --add-data "Styles;Styles" `
+            --add-data "Panoramas;Panoramas" `
+            --add-data "Minecraft_blocks;Minecraft_blocks" `
+            --add-data "thema_skin;thema_skin" `
+            --add-data "icon.png;." `
+            main.py
+      - name: Zip exe
+        run: Compress-Archive -Path "dist/MinecraftLauncher/*" -DestinationPath "dist/MinecraftLauncher-win.zip"
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/MinecraftLauncher-win.zip

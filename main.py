@@ -23,6 +23,7 @@ MOJANG_MANIFEST = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.j
 NEOFORGE_MAVEN = "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml"
 USER_AGENT = "MCLauncher/1.0 (personal launcher)"
 APP_VERSION = "1.0.0"
+GITHUB_REPO = "wimdard/minecraft"
 GITHUB_RAW = "https://raw.githubusercontent.com/wimdard/minecraft/main"
 
 
@@ -158,14 +159,26 @@ class Api:
 
     def check_update(self):
         try:
-            data = http_get_json(f"{GITHUB_RAW}/version.json")
+            data = http_get_json(f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest")
         except Exception as e:
             return {"ok": False, "error": str(e)}
-        latest = data.get("version", "")
-        has = self._version_gt(latest, APP_VERSION)
-        return {"ok": True, "current": APP_VERSION, "latest": latest,
-                "hasUpdate": has, "notes": data.get("notes", ""),
-                "files": data.get("files", [])}
+        tag = (data.get("tag_name") or "").lstrip("v")
+        zip_url = ""
+        for a in data.get("assets", []):
+            if a.get("name", "").endswith(".zip"):
+                zip_url = a.get("browser_download_url", "")
+                break
+        return {"ok": True, "current": APP_VERSION, "latest": tag,
+                "hasUpdate": self._version_gt(tag, APP_VERSION),
+                "notes": data.get("body", ""), "url": zip_url,
+                "page": data.get("html_url", "")}
+    def open_update_page(self, url):
+        try:
+            _open_path(url)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
 
     def _version_gt(self, a, b):
         def parts(v): return [int(x) for x in re.findall(r"\d+", v)]
