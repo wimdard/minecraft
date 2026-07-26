@@ -1,9 +1,12 @@
 name: Build
+
 on:
   release:
     types: [published]
+
 permissions:
   contents: write
+
 jobs:
   build-macos:
     runs-on: macos-latest
@@ -15,8 +18,7 @@ jobs:
       - name: Install deps
         run: pip install pyinstaller pywebview minecraft-launcher-lib certifi
       - name: Set version from tag
-        run: |
-          python -c "import re,os; tag=os.environ['GITHUB_REF_NAME'].lstrip('v'); s=open('main.py',encoding='utf-8').read(); s=re.sub(r'APP_VERSION = \"[^\"]*\"', f'APP_VERSION = \"{tag}\"', s); open('main.py','w',encoding='utf-8').write(s)"
+        run: python set_version.py
       - name: Build app
         run: |
             python -m PyInstaller --windowed --name "Minecraft Launcher" --icon icon.icns \
@@ -44,18 +46,10 @@ jobs:
       - name: Install deps
         run: pip install pyinstaller pywebview minecraft-launcher-lib certifi
       - name: Set version from tag
-        run: |
-          python -c "import re,os; tag=os.environ['GITHUB_REF_NAME'].lstrip('v'); s=open('main.py',encoding='utf-8').read(); s=re.sub(r'APP_VERSION = \"[^\"]*\"', f'APP_VERSION = \"{tag}\"', s); open('main.py','w',encoding='utf-8').write(s)"
-      # ВАЖНО: --onefile вместо прежнего onedir.
-      # Раньше index.html/Logic/Styles/... лежали в отдельной папке _internal
-      # рядом с .exe — если пользователь переносил только .exe (или антивирус
-      # трогал _internal), лаунчер терял интерфейс и падал с "404 Not Found".
-      # --onefile зашивает всё внутрь одного exe: пользователю физически
-      # нечего потерять. Минус — на 1-2 секунды дольше первый запуск
-      # (самораспаковка во временную папку), это нормальная плата.
+        run: python set_version.py
       - name: Build exe
         run: |
-          python -m PyInstaller --onefile --windowed --name "MinecraftLauncher" --icon icon.ico `
+          python -m PyInstaller --windowed --name "MinecraftLauncher" --icon icon.ico `
             --add-data "index.html;." `
             --add-data "Logic;Logic" `
             --add-data "Styles;Styles" `
@@ -64,7 +58,7 @@ jobs:
             --add-data "icon.png;." `
             main.py
       - name: Zip exe
-        run: Compress-Archive -Path "dist/MinecraftLauncher.exe" -DestinationPath "dist/MinecraftLauncher-win.zip"
+        run: Compress-Archive -Path "dist/MinecraftLauncher/*" -DestinationPath "dist/MinecraftLauncher-win.zip"
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
