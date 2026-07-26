@@ -29,7 +29,7 @@ MODRINTH_API = "https://api.modrinth.com/v2"
 MOJANG_MANIFEST = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
 NEOFORGE_MAVEN = "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml"
 USER_AGENT = "MCLauncher/1.0 (personal launcher)"
-APP_VERSION = "0.0.5"
+APP_VERSION = "0.0.6"
 GITHUB_REPO = "wimdard/minecraft"
 GITHUB_RAW = "https://raw.githubusercontent.com/wimdard/minecraft/main"
 
@@ -1162,7 +1162,10 @@ class Api:
 
             log_path = os.path.join(mc, "last_launch.log")
             logf = open(log_path, "w", encoding="utf-8", errors="ignore")
-            proc = subprocess.Popen(cmd, cwd=mc, stdout=logf, stderr=subprocess.STDOUT)
+            popen_kwargs = {"cwd": mc, "stdout": logf, "stderr": subprocess.STDOUT}
+            if sys.platform == "win32":
+                popen_kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+            proc = subprocess.Popen(cmd, **popen_kwargs)
             self._progress("__done__", 1, 1)
             threading.Thread(target=self._watch_process, args=(proc, log_path, logf), daemon=True).start()
         except Exception as e:
@@ -1250,7 +1253,7 @@ if __name__ == "__main__":
         width=1040, height=720,
         min_size=(820, 580),
         background_color="#0F1114",
-        fullscreen=True,
+        resizable=True,
     )
     if DEV:
         threading.Thread(target=start_watcher, daemon=True).start()
