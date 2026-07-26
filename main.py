@@ -29,7 +29,7 @@ MODRINTH_API = "https://api.modrinth.com/v2"
 MOJANG_MANIFEST = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
 NEOFORGE_MAVEN = "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml"
 USER_AGENT = "MCLauncher/1.0 (personal launcher)"
-APP_VERSION = "0.0.4"
+APP_VERSION = "0.0.5"
 GITHUB_REPO = "wimdard/minecraft"
 GITHUB_RAW = "https://raw.githubusercontent.com/wimdard/minecraft/main"
 
@@ -1096,6 +1096,15 @@ class Api:
             if not os.path.exists(vjson):
                 state = {"stage": "Подготовка…", "max": 1, "val": 0, "last": 0.0}
                 launch_version = self._do_install(mc, version, loader, state)
+            base_jar = os.path.join(mc, "versions", version, version + ".jar")
+            if not os.path.exists(base_jar):
+                self._progress("Восстановление файлов игры…", 0, 1)
+                minecraft_launcher_lib.install.install_minecraft_version(
+                    version, mc,
+                    callback=self._make_callback({"stage": "Восстановление…", "max": 1, "val": 0, "last": 0.0})
+                )
+            self._ensure_russian(mc)
+
             self._ensure_russian(mc)
             mem = int(memory)
             xms = min(mem, max(1024, mem // 2))
