@@ -131,18 +131,13 @@ const Classic = (() => {
     const server = (serverArg !== undefined && serverArg !== null)
       ? serverArg
       : ((typeof Servers !== "undefined") ? Servers.activeIp() : "");
-    if (inst) {
-      api().check_java(s.version).then((jr) => {
-        if (jr && !jr.ok) {
-          askConfirm({ icon:"☕", title:"Проблема с Java", text: esc(jr.msg), okText:"Всё равно запустить", okClass:"btn-warn" }, () => doLaunch(s, server));
-          return;
-        }
-        doLaunch(s, server);
-      });
+       if (inst) {
+      doLaunch(s, server);
     } else {
       showLaunch("Подготовка…", 0);
       api().install_version(pid(), s.version, s.loader);
     }
+
   }
 
   playBtn.addEventListener("click", () => play());

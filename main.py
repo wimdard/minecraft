@@ -29,7 +29,7 @@ MODRINTH_API = "https://api.modrinth.com/v2"
 MOJANG_MANIFEST = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
 NEOFORGE_MAVEN = "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml"
 USER_AGENT = "MCLauncher/1.0 (personal launcher)"
-APP_VERSION = "0.3.3"
+APP_VERSION = "0.0.3"
 GITHUB_REPO = "wimdard/minecraft"
 GITHUB_RAW = "https://raw.githubusercontent.com/wimdard/minecraft/main"
 
@@ -1148,6 +1148,9 @@ class Api:
             if intel_java:
                 cmd[0] = intel_java
                 cmd = ["/usr/bin/arch", "-x86_64"] + cmd
+            elif java_exe:
+                cmd[0] = java_exe
+
             log_path = os.path.join(mc, "last_launch.log")
             logf = open(log_path, "w", encoding="utf-8", errors="ignore")
             proc = subprocess.Popen(cmd, cwd=mc, stdout=logf, stderr=subprocess.STDOUT)
