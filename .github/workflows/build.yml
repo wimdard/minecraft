@@ -22,6 +22,7 @@ jobs:
       - name: Build app
         run: |
             python -m PyInstaller --windowed --name "Minecraft Launcher" --icon icon.icns \
+            --collect-data minecraft_launcher_lib \
             --add-data "index.html:." \
             --add-data "Logic:Logic" \
             --add-data "Styles:Styles" \
@@ -50,6 +51,7 @@ jobs:
       - name: Build exe
         run: |
           python -m PyInstaller --windowed --name "MinecraftLauncher" --icon icon.ico `
+            --collect-data minecraft_launcher_lib `
             --add-data "index.html;." `
             --add-data "Logic;Logic" `
             --add-data "Styles;Styles" `
