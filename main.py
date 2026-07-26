@@ -29,7 +29,7 @@ MODRINTH_API = "https://api.modrinth.com/v2"
 MOJANG_MANIFEST = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
 NEOFORGE_MAVEN = "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml"
 USER_AGENT = "MCLauncher/1.0 (personal launcher)"
-APP_VERSION = "0.0.6"
+APP_VERSION = "0.0.7"
 GITHUB_REPO = "wimdard/minecraft"
 GITHUB_RAW = "https://raw.githubusercontent.com/wimdard/minecraft/main"
 
@@ -161,6 +161,15 @@ def _open_path(path):
 
 
 class Api:
+
+
+    def minimize_window(self):
+        try:
+            if _window:
+                _window.minimize()
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
 
     def app_version(self):
         return APP_VERSION
@@ -1104,8 +1113,6 @@ class Api:
                     callback=self._make_callback({"stage": "Восстановление…", "max": 1, "val": 0, "last": 0.0})
                 )
             self._ensure_russian(mc)
-
-            self._ensure_russian(mc)
             mem = int(memory)
             xms = min(mem, max(1024, mem // 2))
             jvm_args = [
@@ -1136,7 +1143,6 @@ class Api:
                 if fix == "swap":
                     self._progress("Подготовка библиотек для Apple Silicon…", 0, 1)
                     lwjgl_jars, lwjgl_nat = self._lwjgl_3xx_dir()
-                # авто-Java нужной версии (не для Rosetta-ветки)
                 java_exe = self._ensure_java(self._required_java(version))
             options = {
                 "username": username or "Player",
@@ -1167,6 +1173,11 @@ class Api:
                 popen_kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
             proc = subprocess.Popen(cmd, **popen_kwargs)
             self._progress("__done__", 1, 1)
+            try:
+                if _window:
+                    _window.minimize()
+            except Exception:
+                pass
             threading.Thread(target=self._watch_process, args=(proc, log_path, logf), daemon=True).start()
         except Exception as e:
             self._err(e)
@@ -1254,6 +1265,7 @@ if __name__ == "__main__":
         min_size=(820, 580),
         background_color="#0F1114",
         resizable=True,
+        maximized=True,
     )
     if DEV:
         threading.Thread(target=start_watcher, daemon=True).start()

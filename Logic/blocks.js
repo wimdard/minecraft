@@ -37,7 +37,7 @@ const Blocks = (() => {
             <span>${esc(v.id)}${v.tag ? ' · ' + v.tag : ''}</span>
             <span class="blk-dot ${inst ? 'on' : ''}"></span></div>`;
         }).join("");
-        const loaders = LOADERS.map(l =>
+        const loaders = loadersFor(s.version).map(l =>
           `<div class="blk-chip${l.id === s.loader ? ' active' : ''}" data-loader="${l.id}">${esc(l.nm)}</div>`
         ).join("");
                 return `<div class="blk-body blk-list-wrap">
@@ -399,7 +399,7 @@ const Blocks = (() => {
     sub = document.createElement("div");
     sub.id = "blkLoaderPop";
     sub.className = "blk-ver-pop show";
-    LOADERS.forEach((l) => {
+    loadersFor(versionId).forEach((l) => {
       const li = document.createElement("div");
       li.className = "vl-loader";
       li.textContent = l.nm;

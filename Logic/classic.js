@@ -21,7 +21,7 @@ const Classic = (() => {
 
   function showSubFor(verEl, versionId) {
     const s = ensureSub(); s.innerHTML = "";
-    LOADERS.forEach((l) => {
+    loadersFor(versionId).forEach((l) => {
       const li = document.createElement("div");
       li.className = "vl-loader"; li.textContent = l.nm;
       li.addEventListener("click", (ev) => {

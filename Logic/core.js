@@ -26,6 +26,20 @@ const LOADERS = [
   { id:"quilt",    nm:"Quilt" },
   { id:"neoforge", nm:"NeoForge" },
 ];
+
+function loadersFor(versionId) {
+  const m = /1\.(\d+)(?:\.(\d+))?/.exec(versionId || "");
+  const minor = m ? parseInt(m[1]) : 0;
+  const patch = m && m[2] ? parseInt(m[2]) : 0;
+  return LOADERS.filter(l => {
+    if (l.id === "vanilla") return true;
+    if (l.id === "fabric" || l.id === "quilt") return minor >= 14;
+    if (l.id === "forge") return minor >= 5;
+    if (l.id === "neoforge") return minor > 20 || (minor === 20 && patch >= 2);
+    return true;
+  });
+}
+
 const FALLBACK_VERSIONS = ["1.21.1","1.21","1.20.6","1.20.4","1.20.1","1.19.4","1.19.2","1.18.2","1.16.5","1.12.2"];
 
 const CELL = 40;
