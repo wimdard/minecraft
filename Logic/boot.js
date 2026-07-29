@@ -17,15 +17,31 @@ function boot(loaded) {
 Profiles.initDropdowns && Profiles.initDropdowns();
 ProfileModal.initDropdown();
 Classic.initDropdown();
+// Мгновенно показать фон заставки, не дожидаясь загрузки версий
+(function preloadSplashBg() {
+  try {
+    const saved = JSON.parse(localStorage.getItem("mc_bg") || "null");
+    const url = saved || "Panoramas/green_panorama.jpg";
+    const sp = document.getElementById("splashBg");
+    const bg = document.getElementById("appBg");
+    if (sp) sp.style.backgroundImage = `url("${url}")`;
+    if (bg) bg.style.backgroundImage = `url("${url}")`;
+  } catch (e) {}
+})();
 
 window.addEventListener("pywebviewready", () => {
   window.pywebview.api.get_system()
     .then((sys) => { App.SYS = Object.assign(App.SYS, sys || {}); })
-    .then(() => window.pywebview.api.get_versions(false))
-    .then((res) => { App.VERSIONS = (res && res.versions) || []; })
     .then(() => window.pywebview.api.load_state())
-    .then(boot);
+    .then(boot)
+    .then(() => {
+      // версии грузим в фоне, уже после показа интерфейса
+      window.pywebview.api.get_versions(false).then((res) => {
+        App.VERSIONS = (res && res.versions) || FALLBACK_VERSIONS.map(v => ({ id: v, type: "release" }));
+      });
+    });
 });
+
 
 setTimeout(() => {
   if (!App.state) { App.VERSIONS = FALLBACK_VERSIONS.map(v => ({ id: v, type: "release" })); boot({ activeProfile: null, profiles: {} }); }
@@ -35,22 +51,19 @@ function hideSplash() {
   const sp = document.getElementById("splash");
   setTimeout(() => {
     document.body.classList.remove("loading");
-    document.body.classList.add("app-enter");   // интерфейс проявляется снизу
-    if (sp) sp.classList.add("hide");            // заставка уезжает вверх
-  }, 1600);
+    document.body.classList.add("app-enter");
+    if (sp) sp.classList.add("hide");
+  }, 600);
   setTimeout(() => {
     if (sp) sp.style.display = "none";
-    document.body.classList.remove("app-enter"); // чистим класс после анимации
-  }, 2400);
+    document.body.classList.remove("app-enter");
+  }, 1200);
 }
-
-
-
 
 setTimeout(() => {
   const sp = document.getElementById("splash");
   if (sp && !sp.classList.contains("hide")) hideSplash();
-}, 3000);
+}, 1500);
 
 window.addEventListener("wheel", (e) => {
   // разрешаем горизонтальный свайп внутри прокручиваемых блоков
