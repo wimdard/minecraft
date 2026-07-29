@@ -1,6 +1,7 @@
-/* Выпадающая панель настроек (как меню профиля). */
+/* Панель настроек. */
 const Settings = (() => {
   const wrap = document.getElementById("settingsWrap");
+  const wrap2 = document.getElementById("settings2Wrap");
   const btn = document.getElementById("topSettings");
 
   document.getElementById("reloadBtn").addEventListener("click", () => {
@@ -52,11 +53,61 @@ const Settings = (() => {
     });
   }
 
-  function close() { wrap.classList.remove("open"); }
+  function closeP2() { if (wrap2) wrap2.classList.remove("reveal2"); }
+  function close() { wrap.classList.remove("open"); closeP2(); }
   function toggle() { wrap.classList.contains("open") ? close() : open(); }
 
   btn.addEventListener("click", (e) => { e.stopPropagation(); toggle(); });
-  document.addEventListener("click", (e) => { if (!wrap.contains(e.target)) close(); });
+  const overlay = document.getElementById("settingsOverlay");
+  if (overlay) overlay.addEventListener("click", close);
+
+  function initBgControls() {
+    const dim = document.getElementById("bgDim");
+    const blur = document.getElementById("bgBlur");
+    if (!dim || !blur) return;
+    const dimVal = document.getElementById("bgDimVal");
+    const blurVal = document.getElementById("bgBlurVal");
+    const applyDim = (v) => {
+      document.documentElement.style.setProperty("--bg-bright", (1 - v / 100).toString());
+      if (dimVal) dimVal.textContent = v + "%";
+    };
+    const applyBlur = (v) => {
+      document.documentElement.style.setProperty("--bg-blur", v + "px");
+      if (blurVal) blurVal.textContent = v + "px";
+    };
+    const d = (App.state && App.state.bgDim != null) ? App.state.bgDim : 78;
+    const b = (App.state && App.state.bgBlur) || 0;
+    dim.value = d; applyDim(d);
+    blur.value = b; applyBlur(b);
+    dim.addEventListener("input", () => { applyDim(dim.value); if (App.state) { App.state.bgDim = +dim.value; persist(); } });
+    blur.addEventListener("input", () => { applyBlur(blur.value); if (App.state) { App.state.bgBlur = +blur.value; persist(); } });
+    const dimReset = document.getElementById("bgDimReset");
+    const blurReset = document.getElementById("bgBlurReset");
+    if (dimReset) dimReset.addEventListener("click", () => {
+      dim.value = 78; applyDim(78);
+      if (App.state) { App.state.bgDim = 78; persist(); }
+    });
+    if (blurReset) blurReset.addEventListener("click", () => {
+      blur.value = 0; applyBlur(0);
+      if (App.state) { App.state.bgBlur = 0; persist(); }
+    });
+  }
+  initBgControls();
+
+  const openP2 = document.getElementById("openPanel2Btn");
+  if (openP2 && wrap2) {
+    openP2.addEventListener("click", () => {
+      wrap2.classList.toggle("reveal2");
+      if (wrap2.classList.contains("reveal2")) loadVersions();
+    });
+  }
+  const overlay2 = document.getElementById("settingsOverlay2");
+  if (overlay2) overlay2.addEventListener("click", closeP2);
+  const _mo = new MutationObserver(() => {
+    if (!wrap.classList.contains("open") && wrap2) wrap2.classList.remove("reveal2");
+  });
+  _mo.observe(wrap, { attributes: true, attributeFilter: ["class"] });
+
 
   return { open, close };
 })();

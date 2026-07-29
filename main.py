@@ -14,6 +14,7 @@ import urllib.parse
 import uuid
 import minecraft_launcher_lib
 
+
 import ssl
 try:
     import certifi
@@ -29,9 +30,10 @@ MODRINTH_API = "https://api.modrinth.com/v2"
 MOJANG_MANIFEST = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
 NEOFORGE_MAVEN = "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml"
 USER_AGENT = "MCLauncher/1.0 (personal launcher)"
-APP_VERSION = "0.0.8"
+APP_VERSION = "0.0.7"
 GITHUB_REPO = "wimdard/minecraft"
 GITHUB_RAW = "https://raw.githubusercontent.com/wimdard/minecraft/main"
+
 
 
 _window = None
@@ -161,6 +163,25 @@ def _open_path(path):
 
 
 class Api:
+
+    
+    def pick_video(self):
+        try:
+            result = _window.create_file_dialog(webview.OPEN_DIALOG, allow_multiple=False,
+                file_types=("Видео (*.mp4;*.webm;*.mov)",))
+            if not result:
+                return {"ok": False}
+            src = result[0]
+            dest_dir = os.path.join(data_dir(), "custom_bg")
+            os.makedirs(dest_dir, exist_ok=True)
+            ext = os.path.splitext(src)[1] or ".mp4"
+            name = "bg_" + uuid.uuid4().hex[:8] + ext
+            dest = os.path.join(dest_dir, name)
+            shutil.copy2(src, dest)
+            return {"ok": True, "path": dest, "url": "file://" + dest}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
 
 
     def minimize_window(self):

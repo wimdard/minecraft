@@ -66,6 +66,9 @@ const Profiles = (() => {
     const s = activeProfile().settings;
     setName.value = activeProfile().name;
     setMemory.max = maxMem();
+    const gbCount = Math.max(1, Math.round(maxMem() / 1024));
+    setMemory.style.setProperty("--gb-step", (100 / gbCount) + "%");
+
     setMemory.value = Math.min(s.memory, maxMem());
     updateMemUI();
     ramHint.textContent = "Всего на ПК: " + App.SYS.ram + " МБ (" + (App.SYS.ram / 1024).toFixed(1) + " ГБ)";

@@ -42,11 +42,11 @@ const Theme = (() => {
     return WITH_PANORAMA.includes(id) || customThemes().some(x => x.id === id);
   }
 
-  function applyBackground(id) {
+     function applyBackground(id) {
     if (!stateReady) return;
     const enabled = !(App.state && App.state.panorama === false);
-    const url = hasPanorama(id) ? panoramaUrl(id) : panoramaUrl("green");
     const appBg = document.getElementById("appBg");
+    const url = hasPanorama(id) ? panoramaUrl(id) : panoramaUrl("green");
     if (appBg) appBg.style.backgroundImage = `url("${url}")`;
     document.body.classList.toggle("show-panorama", enabled);
     const bg = document.getElementById("splashBg");
@@ -55,6 +55,7 @@ const Theme = (() => {
       else { bg.style.display = "none"; }
     }
   }
+
 
   function apply(id) {
     const p = findTheme(id) || PALETTE[0];

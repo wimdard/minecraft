@@ -43,13 +43,11 @@
       <button class="tab active" data-tab="home">Главная</button>
       <button class="tab" data-tab="mods">Контент</button>
       <button class="tab beta-feature" data-tab="datapacks">Датапаки <span class="beta">beta</span></button>
-        <button class="tab" data-tab="ideas">Проекты</button>
-        <button class="tab" data-tab="ach">Достижения</button>
-        <button class="tab" data-tab="updates">Обновления</button>
-
-
-
+      <button class="tab" data-tab="ideas">Проекты</button>
+      <button class="tab" data-tab="ach">Достижения</button>
+      <button class="tab" data-tab="updates">Обновления</button>
     </div>
+
     <div class="profile-wrap" id="profileWrap">
       <button class="profile-btn" id="profileBtn">
         <span class="profile-avatar" id="profileAvatar">?</span>
@@ -62,32 +60,59 @@
         <button class="pm-add" id="pmAdd">+ Новый профиль</button>
       </div>
     </div>
-        <div class="settings-wrap" id="settingsWrap">
+
+    <div class="settings-wrap" id="settingsWrap">
       <button id="topSettings" class="top-btn">⚙ Настройки</button>
+      <div class="settings-overlay" id="settingsOverlay"></div>
       <div class="settings-panel" id="settingsPanel">
+
         <div class="pm-section-title">Профиль</div>
         <div class="pm-field"><label>Имя профиля</label><input type="text" id="setName"></div>
+
         <div class="pm-field"><label>Выделяемая память</label>
           <div class="pm-range-row"><input type="range" id="setMemory" min="1024" step="64"><span class="pm-range-val" id="memVal">4096 МБ</span></div>
           <div class="pm-mem-status ok" id="memStatus">Норма</div>
           <div class="pm-hint" id="ramHint">—</div>
         </div>
 
-        <div class="pm-divider"></div>
         <div class="pm-section-title">Вид</div>
         <div class="view-toggle" id="viewToggle">
           <button data-view="blocks" class="active">🧩 Блоки</button>
           <button data-view="classic">▶ Классика</button>
         </div>
 
-        <div class="pm-divider"></div>
+        <div class="pm-field"><label>Затемнение фона</label>
+          <div class="pm-range-row">
+            <div class="range-col">
+              <input type="range" id="bgDim" min="0" max="90" step="1">
+              <div class="range-scale">
+                <span>0</span><span>10</span><span>20</span><span>30</span><span>40</span><span>50</span><span>60</span><span>70</span><span>80</span><span>90</span>
+              </div>
+            </div>
+            <span class="pm-range-val" id="bgDimVal">22%</span>
+            <button class="range-reset" id="bgDimReset" title="Сбросить">↺</button>
+          </div>
+        </div>
+
+        <div class="pm-field"><label>Размытие фона</label>
+          <div class="pm-range-row">
+            <div class="range-col">
+              <input type="range" id="bgBlur" min="0" max="20" step="1">
+              <div class="range-scale">
+                <span>0</span><span>4</span><span>8</span><span>12</span><span>16</span><span>20</span>
+              </div>
+            </div>
+            <span class="pm-range-val" id="bgBlurVal">0px</span>
+            <button class="range-reset" id="bgBlurReset" title="Сбросить">↺</button>
+          </div>
+        </div>
+
         <div class="pm-section-title">Акцент</div>
         <div class="theme-row" id="themeRow"></div>
         <div class="pm-section-title" style="margin-top:12px;">Свои <button class="add-theme-btn" id="addThemeBtn">＋</button></div>
         <div class="theme-row" id="customThemeRow"></div>
 
-          <div class="beta-feature">
-
+        <div class="beta-feature">
           <div class="pm-section-title" style="margin-top:12px;">Тема оформления <span class="beta">beta</span></div>
           <div class="skin-row" id="skinRow">
             <button class="skin-chip active" data-skin="">Обычная</button>
@@ -97,8 +122,6 @@
             <button class="skin-chip" data-skin="cave">Пещера</button>
           </div>
         </div>
-
-
         <label class="check-row" style="margin-top:12px;">
           <span class="check-box" id="panoramaCheck"></span>
           <span>Панорама на фоне</span>
@@ -106,21 +129,17 @@
         <label class="check-row" style="margin-top:8px;">
           <span class="check-box" id="betaCheck"></span>
           <span>Показывать бета-функции</span>
-        </label>
-
+        </label>  
+        
         <div class="pm-divider"></div>
-        <div class="pm-section-title">Установленные версии</div>
-        <div class="ver-list" id="verList"><div class="ver-empty">Загрузка…</div></div>
-        <button class="folder-btn" id="openFolderBtn">📁 Открыть папку игры</button>
+        <button class="pm-add" id="openPanel2Btn" style="border-style:solid;border-color:var(--accent);color:var(--accent);">📦 Версии и функции ›</button>
 
-        <div class="pm-divider"></div>
-        <button class="pm-add" id="reloadBtn" style="border-style:solid;border-color:var(--accent);color:var(--accent);">🔄 Обновить лаунчер</button>
-      </div>
-    </div>
+      </div><!-- /settingsPanel -->
+    </div><!-- /settingsWrap -->
+
     <button id="editBtn" title="Режим редактирования">✏️</button>
     <button id="addBtn">+ Блок</button>
   </div>
-
 
   <!-- Главная (блоки) -->
   <div class="page active" id="page-home"><div class="grid" id="grid"><div class="surface" id="surface"></div></div></div>
@@ -203,7 +222,7 @@
     </div>
   </div>
 
-    <div class="page" id="page-updates">
+  <div class="page" id="page-updates">
     <div class="upd-wrap">
       <div class="upd-icon">🔄</div>
       <h2>Обновления</h2>
@@ -217,8 +236,7 @@
     </div>
   </div>
 
-
-    <!-- Идеи построек -->
+  <!-- Идеи построек -->
   <div class="page" id="page-ideas">
     <div class="ideas-header">
       <h3>💡 Идеи построек</h3>
@@ -235,7 +253,6 @@
     </div>
     <div class="ach-grid" id="achGrid"></div>
   </div>
-
 
   <!-- Первый запуск -->
   <div class="welcome" id="welcome">
@@ -255,8 +272,8 @@
       <div class="modal-actions"><button class="btn-cancel" id="mCancel">Отмена</button><button class="btn-save" id="mSave">Создать</button></div>
     </div>
   </div>
-  
-    <div class="modal-overlay" id="ideaModal">
+
+  <div class="modal-overlay" id="ideaModal">
     <div class="modal idea-modal">
       <h3 id="ideaModalTitle">Новая идея</h3>
       <div class="idea-gallery" id="ideaGallery"></div>
@@ -300,7 +317,7 @@
     </div>
   </div>
 
-     <div class="modal-overlay" id="ideaViewModal">
+  <div class="modal-overlay" id="ideaViewModal">
     <div class="modal idea-view-modal">
       <button class="mi-close" id="ideaViewClose">×</button>
       <div class="iv-carousel">
@@ -322,10 +339,7 @@
     </div>
   </div>
 
-
-
-
-    <div class="modal-overlay" id="urlModal">
+  <div class="modal-overlay" id="urlModal">
     <div class="modal">
       <h3>🔗 Ссылка на картинку</h3>
       <button class="url-paste-big" id="urlPasteBig">
@@ -344,7 +358,6 @@
       </div>
     </div>
   </div>
-
 
   <!-- Окно: профиль -->
   <div class="modal-overlay" id="profileModal">
@@ -409,7 +422,7 @@
     </div>
   </div>
 
-    <div class="modal-overlay" id="themeNameModal">
+  <div class="modal-overlay" id="themeNameModal">
     <div class="modal">
       <h3>Своя тема</h3>
       <img id="tnPreview" class="tn-preview" alt="">
@@ -425,6 +438,18 @@
     </div>
   </div>
 
+  <!-- Вторая панель настроек (вынесена в body, чтобы не обрезалась) -->
+  <div id="settings2Wrap">
+    <div class="settings-overlay-2" id="settingsOverlay2"></div>
+    <div class="settings-panel-2" id="settingsPanel2">
+      <div class="pm-section-title">Установленные версии</div>
+      <div class="ver-list" id="verList"><div class="ver-empty">Загрузка…</div></div>
+      <button class="folder-btn" id="openFolderBtn">📁 Открыть папку игры</button>
+
+      <div class="pm-divider"></div>
+      <button class="pm-add" id="reloadBtn" style="border-style:solid;border-color:var(--accent);color:var(--accent);">🔄 Обновить лаунчер</button>
+    </div>
+  </div>
 
   <script src="Logic/errorbox.js"></script>
   <script src="Logic/core.js"></script>
@@ -444,9 +469,7 @@
   <script src="Logic/boot.js"></script>
   <script src="Logic/ideas.js"></script>
   <script src="Logic/achievements.js"></script>
-    <script src="Logic/updates.js"></script>
-
-
+  <script src="Logic/updates.js"></script>
 
 </body>
 </html>
