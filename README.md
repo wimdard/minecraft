@@ -1,7 +1,9 @@
 # Minecraft Launcher
 
 Кастомный лаунчер Minecraft для macOS и Windows. Пиратский (offline) режим, менеджер модов, кастомизируемый интерфейс из блоков и встроенные обновления
-![Главное меню](screenshots/screanchot-main-menu.png)
+
+![Главное меню](screanshots/screanchot-main-menu.png)
+
 
 ## Возможности
 
