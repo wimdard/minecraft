@@ -229,7 +229,7 @@ body[data-view="classic"] #addBtn { display:none; }
   opacity: 0;
   transform: translateX(30px);
   pointer-events: none;
-  transition: opacity .28s ease, transform .28s cubic-bezier(.2,.8,.2,1);
+    transition: opacity .5s ease, transform .4s ease;
   background: #14171c;
   border: 1px solid var(--border);
   border-radius: 16px;
