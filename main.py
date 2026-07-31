@@ -30,7 +30,7 @@ MODRINTH_API = "https://api.modrinth.com/v2"
 MOJANG_MANIFEST = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
 NEOFORGE_MAVEN = "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml"
 USER_AGENT = "MCLauncher/1.0 (personal launcher)"
-APP_VERSION = "0.0.7"
+APP_VERSION = "0.0.9"
 GITHUB_REPO = "wimdard/minecraft"
 GITHUB_RAW = "https://raw.githubusercontent.com/wimdard/minecraft/main"
 
