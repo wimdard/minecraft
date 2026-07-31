@@ -21,12 +21,23 @@ Classic.initDropdown();
 (function preloadSplashBg() {
   try {
     const saved = JSON.parse(localStorage.getItem("mc_bg") || "null");
-    const url = saved || "Panoramas/green_panorama.jpg";
     const sp = document.getElementById("splashBg");
     const bg = document.getElementById("appBg");
-    if (sp) sp.style.backgroundImage = `url("${url}")`;
-    if (bg) bg.style.backgroundImage = `url("${url}")`;
+    if (saved === "") { if (sp) sp.style.display = "none"; return; }
+    if (!saved) return;
+    if (sp) sp.style.backgroundImage = `url("${saved}")`;
+    if (bg) bg.style.backgroundImage = `url("${saved}")`;
+    // Показать фон сразу (CSS проявит его плавно через transition), не дожидаясь состояния
+    document.body.classList.add("show-panorama");
   } catch (e) {}
+})();
+
+// Затемняющий слой растворяет Theme.ready() — когда настоящий фон уже применён.
+// Здесь только страховка: если ready не наступил за 4с, убираем плашку принудительно.
+(function () {
+  const fade = document.getElementById("bootFade");
+  if (!fade) return;
+  setTimeout(() => fade.classList.add("gone"), 4000);
 })();
 
 window.addEventListener("pywebviewready", () => {

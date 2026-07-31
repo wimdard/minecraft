@@ -6,6 +6,25 @@ const Mods = (() => {
   const typebar = document.getElementById("modsTypebar");
 
   let selectedCats = [], mode = "search", ptype = "mod", currentSort = "relevance";
+  let installedMap = {};
+  function applyInstalledMarks() {
+    modsList.querySelectorAll(".mod-card[data-pid]").forEach((card) => {
+      const pid = card.getAttribute("data-pid");
+      const btn = card.querySelector(".install");
+      if (!btn) return;
+      if (installedMap[pid] && !btn.classList.contains("installed")) {
+        btn.textContent = "Установлено \u2713";
+        btn.classList.add("installed");
+      }
+    });
+  }
+  function refreshInstalledMap() {
+    if (!api() || !hasProfile()) return Promise.resolve();
+    return api().installed_map(App.state.activeProfile, ptype).then((r) => {
+      installedMap = (r && r.map) || {};
+      applyInstalledMarks();
+    }).catch(() => { installedMap = {}; });
+  }
   let searchTimer = null, offset = 0, total = 0, loading = false;
   const RESOLUTIONS = ["8x-","16x","32x","64x","128x","256x","512x+"];
   const CONTENT_TYPES = ["audio","fonts","models","gui","blocks","items","environment","equipment","locale","modded"];
@@ -121,6 +140,7 @@ const Mods = (() => {
   function onOpen() {
     if (!api()) { modsList.innerHTML = '<div class="mods-status error">Modrinth работает только через python3 main.py</div>'; return; }
     if (!hasProfile()) { modsList.innerHTML = '<div class="mods-status">Сначала создай профиль</div>'; return; }
+    refreshInstalledMap();
     applyView();
     if (viewSwitch) viewSwitch.querySelectorAll(".vs-btn").forEach(b => b.classList.toggle("active", b.dataset.vw === viewMode()));
     if (ptype !== "modpack") loadCategories();
@@ -231,7 +251,10 @@ const Mods = (() => {
     const fav = isBookmarked(m.project_id);
     card.innerHTML = `<img class="mod-icon" src="${m.icon_url || ''}" onerror="this.style.visibility='hidden'"><div class="mod-info"><div class="mod-title">${esc(m.title)}</div><div class="mod-desc">${esc(m.description || '')}</div><div class="mod-meta">▼ ${dl} · ${esc(m.author || '')}</div></div><div class="mod-actions"><button class="fav-btn ${fav ? 'on' : ''}" title="В избранное">♥</button><button class="mod-btn install">Установить</button></div>`;
     card.addEventListener("click", (e) => { if (e.target.closest(".install") || e.target.closest(".fav-btn")) return; openInfo(m.project_id); });
-    card.querySelector(".install").addEventListener("click", (e) => { e.stopPropagation(); doInstall(m.project_id, e.target); });
+    card.setAttribute("data-pid", m.project_id);
+    const instBtn = card.querySelector(".install");
+    if (installedMap[m.project_id]) { instBtn.textContent = "Установлено \u2713"; instBtn.classList.add("installed"); }
+    instBtn.addEventListener("click", (e) => { e.stopPropagation(); doInstall(m.project_id, e.target).then(() => refreshInstalledMap()); });
     card.querySelector(".fav-btn").addEventListener("click", (e) => { e.stopPropagation(); toggleBookmark(m); e.target.classList.toggle("on"); });
     return card;
   }
@@ -308,6 +331,26 @@ const Mods = (() => {
       } else {
         installBtn.textContent = "Установить";
         installBtn.onclick = () => doInstall(projectId, installBtn);
+        const s = activeProfile().settings;
+        installBtn.textContent = "Проверка…"; installBtn.disabled = true;
+        api().mod_status(App.state.activeProfile, projectId, s.loader, s.version, ptype).then((st) => {
+          if (!st || st.status === "not_installed" || st.status === "unknown") {
+            installBtn.disabled = false; installBtn.textContent = "Установить";
+            installBtn.onclick = () => doInstall(projectId, installBtn);
+          } else if (st.status === "installed") {
+            installBtn.disabled = true; installBtn.textContent = "Установлено \u2713";
+          } else if (st.status === "outdated") {
+            installBtn.disabled = false;
+            installBtn.textContent = "Обновить \u2192 " + (st.latest_version || "");
+            installBtn.onclick = () => {
+              installBtn.disabled = true; installBtn.textContent = "Обновление…";
+              api().update_mod(App.state.activeProfile, projectId, s.loader, s.version, ptype, st.old_filename || "").then((r) => {
+                if (r && r.ok) { installBtn.textContent = "Обновлено \u2713"; }
+                else { installBtn.disabled = false; installBtn.textContent = "Ошибка"; if (r && r.error) askConfirm({ icon:"\u26a0\ufe0f", title:"Не удалось обновить", text: esc(r.error), okText:"Ок" }, null); }
+              });
+            };
+          }
+        });
       }
     });
   }

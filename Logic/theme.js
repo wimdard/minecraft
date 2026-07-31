@@ -42,6 +42,27 @@ const Theme = (() => {
     return WITH_PANORAMA.includes(id) || customThemes().some(x => x.id === id);
   }
 
+  function cacheBgThumb(url) {
+    try {
+      if (!url.startsWith("data:")) { localStorage.setItem("mc_bg", JSON.stringify(url)); return; }
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const maxW = 640;
+          const scale = Math.min(1, maxW / (img.naturalWidth || maxW));
+          const w = Math.max(1, Math.round((img.naturalWidth || maxW) * scale));
+          const h = Math.max(1, Math.round((img.naturalHeight || maxW) * scale));
+          const c = document.createElement("canvas");
+          c.width = w; c.height = h;
+          c.getContext("2d").drawImage(img, 0, 0, w, h);
+          localStorage.setItem("mc_bg", JSON.stringify(c.toDataURL("image/jpeg", 0.6)));
+        } catch (e) { try { localStorage.removeItem("mc_bg"); } catch (_) {} }
+      };
+      img.onerror = () => {};
+      img.src = url;
+    } catch (e) {}
+  }
+
      function applyBackground(id) {
     if (!stateReady) return;
     const enabled = !(App.state && App.state.panorama === false);
@@ -53,6 +74,11 @@ const Theme = (() => {
     if (bg) {
       if (enabled) { bg.style.backgroundImage = `url("${url}")`; bg.style.display = ""; }
       else { bg.style.display = "none"; }
+    }
+    if (!enabled) {
+      try { localStorage.setItem("mc_bg", JSON.stringify("")); } catch (e) {}
+    } else {
+      cacheBgThumb(url);
     }
   }
 
@@ -264,6 +290,9 @@ const Theme = (() => {
   function ready() {
     stateReady = true;
     apply((App.state && App.state.theme) || "green");
+    // Фон применён — плавно убираем затемняющий слой (даём кадр на отрисовку фона).
+    const fade = document.getElementById("bootFade");
+    if (fade) requestAnimationFrame(() => requestAnimationFrame(() => fade.classList.add("gone")));
   }
 
   if (document.readyState === "loading") {

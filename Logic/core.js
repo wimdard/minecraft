@@ -72,9 +72,21 @@ function memAssessment(mb, loader) {
 function ramLevel(mb) { if (mb < 4096) return "bad"; if (mb < 8192) return "warn"; return "ok"; }
 function coreLevel(n) { if (n < 2) return "bad"; if (n < 4) return "warn"; return "ok"; }
 
+// На Apple Silicon (arm64) версии 1.13-1.18 не запускаются из-за бага Minecraft
+// (краш на иконке окна) - прячем их из списка. Ниже 1.13 и с 1.19 всё работает.
+function isBlockedOnArm(versionId) {
+  if (App.SYS.arch !== "arm64") return false;
+  const m = /^1\.(\d+)(?:\.(\d+))?/.exec(versionId || "");
+  if (!m) return false;
+  const minor = parseInt(m[1]);
+  return minor >= 13 && minor <= 18;
+}
+
 function versionOptions() {
   const list = App.VERSIONS.length ? App.VERSIONS : FALLBACK_VERSIONS.map(v => ({ id:v, type:"release" }));
-  return list.map(v => ({ id:v.id, label:v.id, tag: v.type === "snapshot" ? "snapshot" : "" }));
+  return list
+    .filter(v => !isBlockedOnArm(v.id))
+    .map(v => ({ id:v.id, label:v.id, tag: v.type === "snapshot" ? "snapshot" : "" }));
 }
 
 document.querySelectorAll(".tab").forEach((tab) => {

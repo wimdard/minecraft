@@ -102,7 +102,19 @@ const Settings = (() => {
     });
   }
   const overlay2 = document.getElementById("settingsOverlay2");
-  if (overlay2) overlay2.addEventListener("click", closeP2);
+  if (overlay2) overlay2.addEventListener("click", close);
+
+  // Клик вне панелей настроек — закрыть всё одним кликом. Учитываем только сами
+  // панели (не затемнения), поэтому клик по overlay второй панели тоже закрывает.
+  const panel1 = document.getElementById("settingsPanel");
+  const panel2 = document.getElementById("settingsPanel2");
+  document.addEventListener("click", (e) => {
+    if (!wrap.classList.contains("open")) return;
+    if (btn.contains(e.target)) return;
+    const inPanel1 = panel1 && panel1.contains(e.target);
+    const inPanel2 = panel2 && panel2.contains(e.target);
+    if (!inPanel1 && !inPanel2) close();
+  });
   const _mo = new MutationObserver(() => {
     if (!wrap.classList.contains("open") && wrap2) wrap2.classList.remove("reveal2");
   });

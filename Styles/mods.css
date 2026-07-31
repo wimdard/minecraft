@@ -145,33 +145,6 @@ body.loading { overflow:hidden; }
 @keyframes splashSlide { 0%{ transform:translateX(-140%);} 100%{ transform:translateX(360%);} }
 .splash-hint { font-size:12px; color:var(--muted); margin-top:16px; letter-spacing:.3px; }
 
-/* летающие блоки Minecraft на фоне */
-.splash-cubes { position:absolute; inset:0; z-index:1; }
-.splash-cubes img {
-  position:absolute; bottom:-80px; width:52px; height:52px;
-  image-rendering:pixelated;
-  filter:drop-shadow(0 8px 16px rgba(0,0,0,.45));
-  opacity:0;
-  animation:cubeFloat linear forwards;   /* один раз, без infinite */
-}
-
-@keyframes cubeFloat {
-  0%   { transform:translateY(0) rotate(0deg); opacity:0; }
-  12%  { opacity:.95; }
-  88%  { opacity:.95; }
-  100% { transform:translateY(-118vh) rotate(200deg); opacity:0; }
-}
-.splash-cubes img:nth-child(1){ left:7%;  width:44px; animation-duration:8s;   animation-delay:0s; }
-.splash-cubes img:nth-child(2){ left:19%; width:58px; animation-duration:10s;  animation-delay:1.4s; }
-.splash-cubes img:nth-child(3){ left:31%; width:40px; animation-duration:7s;   animation-delay:.6s; }
-.splash-cubes img:nth-child(4){ left:43%; width:52px; animation-duration:9.5s; animation-delay:2.2s; }
-.splash-cubes img:nth-child(5){ left:54%; width:46px; animation-duration:8.5s; animation-delay:.9s; }
-.splash-cubes img:nth-child(6){ left:64%; width:60px; animation-duration:11s;  animation-delay:1.8s; }
-.splash-cubes img:nth-child(7){ left:74%; width:42px; animation-duration:7.5s; animation-delay:.3s; }
-.splash-cubes img:nth-child(8){ left:83%; width:54px; animation-duration:10.5s;animation-delay:2.6s; }
-.splash-cubes img:nth-child(9){ left:91%; width:48px; animation-duration:9s;   animation-delay:1.1s; }
-.splash-cubes img:nth-child(10){ left:14%; width:50px; animation-duration:12s; animation-delay:3.2s; }
-
 #page-ideas { display:none; flex-direction:column; padding:20px 28px; }
 #page-ideas.active { display:flex; }
 .ideas-header { display:flex; align-items:center; gap:14px; margin-bottom:16px; flex-wrap:wrap; }
@@ -242,7 +215,7 @@ idea-view-modal .mi-close { position:absolute; top:16px; right:18px; z-index:5;w
 /* Карусель */
 .iv-carousel { position:relative; width:100%; height:400px; overflow:hidden; background:#15181c; flex-shrink:0; }
 .iv-track { display:flex; height:100%; transition:transform .45s cubic-bezier(.4,0,.2,1); }
-.iv-slide { min-width:100%; height:100%; background-size:cover; background-position:center; }
+.iv-slide { min-width:100%; height:100%; background-size:contain; background-repeat:no-repeat; background-position:center; }
 .iv-slide.empty { display:flex; align-items:center; justify-content:center; font-size:72px; }
 .iv-nav { position:absolute; top:50%; transform:translateY(-50%); width:44px; height:44px; border:none; border-radius:50%; background:rgba(0,0,0,0.5); color:#fff; font-size:26px; cursor:pointer; backdrop-filter:blur(4px); z-index:3; transition:background .12s; }
 .iv-nav:hover { background:var(--accent); }

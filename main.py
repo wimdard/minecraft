@@ -136,6 +136,14 @@ def http_get_json(url):
         return json.loads(r.read().decode("utf-8"))
 
 
+def http_post_json(url, payload):
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=data, method="POST",
+                                 headers={"User-Agent": USER_AGENT, "Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=25) as r:
+        return json.loads(r.read().decode("utf-8"))
+
+
 def http_download(url, dest):
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(req, timeout=120) as r, open(dest, "wb") as f:
@@ -249,7 +257,7 @@ class Api:
 
 
     def _needs_intel_java(self, version):
-        """True для версий на LWJGL 2.x (<=1.12) на Apple Silicon — запуск через Rosetta."""
+        """True только для LWJGL 2 (<=1.12) на Apple Silicon — их запускаем через Rosetta."""
         if sys.platform != "darwin" or platform.machine() != "arm64":
             return False
         m = re.search(r"1\.(\d+)(?:\.(\d+))?", version)
@@ -303,7 +311,9 @@ class Api:
         # 3) скачать Temurin под текущую ОС/арч
         self._progress(f"Скачивание Java {major}…", 0, 1)
         if sys.platform == "darwin":
-            os_name = "mac"; arch = "aarch64" if platform.machine() == "arm64" else "x64"; ext = "tar.gz"
+            os_name = "mac"
+            arch = "aarch64" if (platform.machine() == "arm64" and major >= 11) else "x64"
+            ext = "tar.gz"
         elif sys.platform == "win32":
             os_name = "windows"; arch = "x64"; ext = "zip"
         else:
@@ -743,7 +753,9 @@ class Api:
         if minor >= 18:
             return 17
         if minor == 17:
-            return 16
+            return 17  # 1.17 официально хочет Java 16, но Temurin 16 снят — 17 совместима
+        if sys.platform == "darwin" and platform.machine() == "arm64" and minor >= 13:
+            return 17  # arm64: 1.13-1.16 на Java 17 (Java 8 arm64 нет; 17 запускает + swap LWJGL)
         return 8
 
     def check_java(self, version):
@@ -854,6 +866,117 @@ class Api:
             return {"ok": False, "error": f"Ошибка скачивания: {e}"}
         return {"ok": True, "filename": target["filename"], "version": ver.get("version_number")}
 
+    def _sha1_file(self, path):
+        import hashlib
+        h = hashlib.sha1()
+        try:
+            with open(path, "rb") as f:
+                for chunk in iter(lambda: f.read(65536), b""):
+                    h.update(chunk)
+            return h.hexdigest()
+        except Exception:
+            return None
+
+    def _latest_version(self, project_id, loader, version, ptype="mod"):
+        params = {"game_versions": json.dumps([version]) if version else json.dumps([])}
+        if ptype == "mod" and loader and loader != "vanilla":
+            params["loaders"] = json.dumps([loader])
+        url = f"{MODRINTH_API}/project/{project_id}/version?" + urllib.parse.urlencode(params)
+        vers = http_get_json(url)
+        return vers[0] if vers else None
+
+    def _installed_file_for_project(self, profile_id, project_id, ptype="mod"):
+        d = content_dir(profile_id, ptype)
+        for fn in os.listdir(d):
+            if not fn.lower().endswith((".jar", ".zip")):
+                continue
+            sha1 = self._sha1_file(os.path.join(d, fn))
+            if not sha1:
+                continue
+            try:
+                info = http_get_json(f"{MODRINTH_API}/version_file/{sha1}?algorithm=sha1")
+            except Exception:
+                continue
+            if info and info.get("project_id") == project_id:
+                return fn, info.get("version_number")
+        return None, None
+
+    def mod_status(self, profile_id, project_id, loader, version, ptype="mod"):
+        try:
+            fn, cur_ver = self._installed_file_for_project(profile_id, project_id, ptype)
+            if not fn:
+                return {"status": "not_installed"}
+            latest = self._latest_version(project_id, loader, version, ptype)
+            latest_ver = latest.get("version_number") if latest else None
+            if latest_ver and cur_ver and latest_ver != cur_ver:
+                return {"status": "outdated", "installed_version": cur_ver,
+                        "latest_version": latest_ver, "old_filename": fn}
+            return {"status": "installed", "installed_version": cur_ver}
+        except Exception as e:
+            return {"status": "unknown", "error": str(e)}
+
+    def update_mod(self, profile_id, project_id, loader, version, ptype="mod", old_filename=""):
+        r = self.install_mod(profile_id, project_id, loader, version, ptype)
+        if not r.get("ok"):
+            return r
+        if old_filename and old_filename != r.get("filename"):
+            d = content_dir(profile_id, ptype)
+            old = os.path.normpath(os.path.join(d, old_filename))
+            if old.startswith(os.path.normpath(d)) and os.path.exists(old):
+                try:
+                    os.remove(old)
+                except Exception:
+                    pass
+        return r
+
+    def installed_map(self, profile_id, ptype="mod"):
+        """Опознаёт файлы, кэшируя по mtime+size — хешируем только новые/изменённые."""
+        d = content_dir(profile_id, ptype)
+        cache_path = os.path.join(d, ".mods_cache_" + ptype + ".json")
+        cache = {}
+        try:
+            with open(cache_path, "r", encoding="utf-8") as f:
+                cache = json.load(f)
+        except Exception:
+            cache = {}
+        files = [fn for fn in os.listdir(d) if fn.lower().endswith((".jar", ".zip"))]
+        fresh, to_query = {}, {}
+        for fn in files:
+            try:
+                st = os.stat(os.path.join(d, fn))
+                sig = {"mtime": int(st.st_mtime), "size": st.st_size}
+            except Exception:
+                continue
+            c = cache.get(fn)
+            if c and c.get("mtime") == sig["mtime"] and c.get("size") == sig["size"]:
+                fresh[fn] = c; continue
+            h = self._sha1_file(os.path.join(d, fn))
+            if not h:
+                continue
+            sig["sha1"] = h; fresh[fn] = sig; to_query[h] = fn
+        if to_query:
+            try:
+                res = http_post_json(f"{MODRINTH_API}/version_files",
+                                     {"hashes": list(to_query.keys()), "algorithm": "sha1"})
+            except Exception:
+                res = {}
+            for h, ver in (res or {}).items():
+                fn = to_query.get(h)
+                if fn and ver:
+                    fresh[fn]["project_id"] = ver.get("project_id")
+                    fresh[fn]["version"] = ver.get("version_number")
+        try:
+            with open(cache_path, "w", encoding="utf-8") as f:
+                json.dump(fresh, f, ensure_ascii=False)
+        except Exception:
+            pass
+        out = {}
+        for fn, rec in fresh.items():
+            pid = rec.get("project_id")
+            if pid:
+                out[pid] = {"version": rec.get("version"), "filename": fn}
+        return {"map": out}
+
     def install_modpack(self, profile_id, project_id):
         threading.Thread(target=self._modpack_worker, args=(profile_id, project_id), daemon=True).start()
         return {"ok": True}
@@ -924,30 +1047,38 @@ class Api:
         return {"ok": True}
 
     # ---------- установка / запуск ----------
+    def _loader_matches(self, vid, loader):
+        low = vid.lower()
+        if loader == "forge":
+            return "forge" in low and "neoforge" not in low
+        return loader in low
+
     def _find_loader_version(self, mc, loader, base_version):
         try:
             installed = minecraft_launcher_lib.utils.get_installed_versions(mc)
             for v in installed:
                 vid = v.get("id", "")
-                if loader in vid.lower() and base_version in vid:
-                    return vid
-            for v in reversed(installed):
-                vid = v.get("id", "")
-                if loader in vid.lower():
+                if self._loader_matches(vid, loader) and base_version in vid:
                     return vid
         except Exception:
             pass
-        return base_version
+        return None
 
     def _version_id(self, mc, base_version, loader):
         if loader in ("fabric", "quilt", "forge", "neoforge"):
-            return self._find_loader_version(mc, loader, base_version)
+            found = self._find_loader_version(mc, loader, base_version)
+            return found if found else base_version
         return base_version
 
     def is_installed(self, profile_id, version, loader="vanilla"):
         try:
             mc = profile_game_dir(profile_id)
-            vid = self._version_id(mc, version, loader)
+            if loader in ("fabric", "quilt", "forge", "neoforge"):
+                vid = self._find_loader_version(mc, version, loader)
+                if not vid:
+                    return {"installed": False}
+            else:
+                vid = version
             vjson = os.path.join(mc, "versions", vid, vid + ".json")
             return {"installed": os.path.exists(vjson)}
         except Exception:
@@ -1090,7 +1221,12 @@ class Api:
         elif loader == "neoforge":
             self._progress("Установка NeoForge…", 0, 1)
             self._install_neoforge(mc, version, callback)
-        return self._version_id(mc, version, loader)
+        if loader in ("fabric", "quilt", "forge", "neoforge"):
+            found = self._find_loader_version(mc, version, loader)
+            if not found:
+                raise RuntimeError(f"{loader} установился, но версия не найдена в versions/.")
+            return found
+        return version
 
     def _install_worker(self, profile_id, version, loader):
         try:
@@ -1118,12 +1254,30 @@ class Api:
                 out[i + 1] = sep.join(uniq)
         return out
 
+    def _arm_unsupported(self, version):
+        """1.13-1.18 не запускаются на Apple Silicon: Minecraft роняет игру на иконке окна.
+        Ниже 1.13 — Rosetta+LWJGL2, выше 1.18 — нативный arm64, они работают."""
+        if sys.platform != "darwin" or platform.machine() != "arm64":
+            return False
+        m = re.search(r"1\.(\d+)(?:\.(\d+))?", version)
+        if not m:
+            return False
+        return 13 <= int(m.group(1)) <= 18
+
     def _launch_worker(self, profile_id, version, username, memory, loader, server=""):
         try:
+            if self._arm_unsupported(version):
+                self._err("Minecraft " + version + " не запускается на Mac с Apple Silicon "
+                          "из-за ограничения самой игры (краш на иконке окна). "
+                          "Выбери 1.12.2 или 1.19.3 и новее.")
+                return
             mc = profile_game_dir(profile_id)
-            launch_version = self._version_id(mc, version, loader)
-            vjson = os.path.join(mc, "versions", launch_version, launch_version + ".json")
-            if not os.path.exists(vjson):
+            if loader in ("fabric", "quilt", "forge", "neoforge"):
+                launch_version = self._find_loader_version(mc, version, loader)
+            else:
+                launch_version = version
+            vjson = os.path.join(mc, "versions", launch_version, launch_version + ".json") if launch_version else ""
+            if not launch_version or not os.path.exists(vjson):
                 state = {"stage": "Подготовка…", "max": 1, "val": 0, "last": 0.0}
                 launch_version = self._do_install(mc, version, loader, state)
             base_jar = os.path.join(mc, "versions", version, version + ".jar")
@@ -1287,8 +1441,19 @@ if __name__ == "__main__":
         background_color="#0F1114",
         resizable=True,
         maximized=True,
+        hidden=True,
     )
     if DEV:
         threading.Thread(target=start_watcher, daemon=True).start()
+
+    def _show_when_ready():
+        # Показываем окно, когда webview уже отрисовал тёмный HTML — без белой вспышки.
+        import time
+        time.sleep(0.25)
+        try:
+            _window.show()
+        except Exception:
+            pass
+    threading.Thread(target=_show_when_ready, daemon=True).start()
     webview.start()
 
