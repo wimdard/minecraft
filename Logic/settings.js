@@ -9,6 +9,16 @@ const Settings = (() => {
     else location.reload();
   });
 
+  const logBtn = document.getElementById("showLogBtn");
+  if (logBtn) {
+    logBtn.addEventListener("click", () => {
+      if (!api() || !hasProfile()) return;
+      api().get_last_log(App.state.activeProfile).then((r) => {
+        const text = (r && r.ok) ? r.log : "Лог пуст или игра ещё не запускалась.";
+        askConfirm({ icon:"📄", title:"Лог последнего запуска", text:`<pre class="log-pre">${esc(text || "(пусто)")}</pre>`, okText:"Закрыть" }, null);
+      });
+    });
+  }
   const folderBtn = document.getElementById("openFolderBtn");
   if (folderBtn) {
     folderBtn.addEventListener("click", () => {
@@ -111,6 +121,10 @@ const Settings = (() => {
   document.addEventListener("click", (e) => {
     if (!wrap.classList.contains("open")) return;
     if (btn.contains(e.target)) return;
+    // не закрываем настройки поверх модалки подтверждения (клик по её кнопкам
+    // всплывает до document и иначе ложно закрывал бы панель)
+    const cm = document.getElementById("confirmModal");
+    if (cm && (cm.classList.contains("show") || cm.contains(e.target))) return;
     const inPanel1 = panel1 && panel1.contains(e.target);
     const inPanel2 = panel2 && panel2.contains(e.target);
     if (!inPanel1 && !inPanel2) close();

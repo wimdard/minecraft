@@ -175,6 +175,14 @@ const Classic = (() => {
     updatePlayButton();
     if (wrap.classList.contains("open")) buildMenu();
   };
+  window.onGameClosed = function (pid, secs) {
+    // копим игровое время сеанса в профиле (в секундах)
+    if (!pid || !secs || !App.state || !App.state.profiles[pid]) return;
+    const s = App.state.profiles[pid].settings;
+    s.playtime = (s.playtime || 0) + secs;
+    persist();
+    if (typeof Classic !== "undefined") Classic.render();
+  };
   window.onModpackInstalled = function (filename, version) {
     hideLaunch();
     askConfirm({ icon:"📦", title:"Модпак установлен", text:`Сборка установлена в профиль.${version ? " Версия: <b>" + esc(version) + "</b>." : ""} Выбери её в списке версий и жми Играть.`, okText:"Ок" }, null);

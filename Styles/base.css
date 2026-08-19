@@ -258,3 +258,7 @@ body.skin-switching * { transition:none !important; }
   pointer-events: none;
 }
 #bootFade.gone { opacity: 0; }
+
+/* Селекторы вкладки "Вне версии" */
+.browse-filters { display:flex; gap:8px; align-items:center; }
+.browse-sel { background:#14171c; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-size:13px; cursor:pointer; }

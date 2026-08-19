@@ -138,7 +138,7 @@ const Ideas = (() => {
     document.getElementById("ivDesc").textContent = idea.desc || "Без описания";
     document.getElementById("ivMeta").innerHTML = `${idea.tag ? `<span class="idea-badge">${esc(idea.tag)}</span>` : ""}${idea.diff ? `<span class="idea-badge diff">${esc(idea.diff)}</span>` : ""}`;
     document.getElementById("ivEdit").onclick = () => { vm.classList.remove("show"); open(id); };
-    document.getElementById("ivPinterest").onclick = () => window.open("https://www.pinterest.com/search/pins/?q=" + encodeURIComponent("minecraft " + idea.name), "_blank");
+    document.getElementById("ivPinterest").onclick = () => (window.pywebview && window.pywebview.api && window.pywebview.api.open_url("https://www.pinterest.com/search/pins/?q=" + encodeURIComponent("minecraft " + idea.name)));
     vm.classList.add("show");
   }
 
@@ -189,7 +189,7 @@ const Ideas = (() => {
 
   document.getElementById("ideaPinterest").addEventListener("click", () => {
     const name = document.getElementById("ideaName").value.trim() || "minecraft build";
-    window.open("https://www.pinterest.com/search/pins/?q=" + encodeURIComponent("minecraft " + name), "_blank");
+    (window.pywebview && window.pywebview.api && window.pywebview.api.open_url("https://www.pinterest.com/search/pins/?q=" + encodeURIComponent("minecraft " + name)));
   });
 
   document.getElementById("ideaSave").addEventListener("click", () => {

@@ -51,7 +51,17 @@ const Achievements = (() => {
     const g = got();
     const total = ALL.length, done = ALL.filter(a => g[a.id]).length;
     const prog = document.getElementById("achProgress");
-    if (prog) prog.textContent = `${done} / ${total}`;
+    if (prog) {
+      let pt = "";
+      if (typeof hasProfile === "function" && hasProfile()) {
+        const secs = (activeProfile().settings.playtime || 0);
+        if (secs > 0) {
+          const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60);
+          pt = " · ⏱ " + (h ? h + " ч " : "") + m + " мин";
+        }
+      }
+      prog.textContent = `${done} / ${total}` + pt;
+    }
     box.innerHTML = "";
     ALL.forEach(a => {
       const has = !!g[a.id];

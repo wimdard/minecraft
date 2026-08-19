@@ -218,6 +218,14 @@ class Api:
                 "hasUpdate": self._version_gt(tag, APP_VERSION),
                 "notes": data.get("body", ""), "url": zip_url,
                 "page": data.get("html_url", "")}
+    def open_url(self, url):
+        try:
+            if url:
+                _open_path(url)
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
     def open_update_page(self, url):
         try:
             _open_path(url)
@@ -744,10 +752,14 @@ class Api:
         """Требуемая мажорная Java по версии игры."""
         try:
             parts = version.split(".")
-            minor = int(parts[1]) if len(parts) > 1 else 0
-            patch = int(parts[2]) if len(parts) > 2 else 0
+            major = int(parts[0]) if parts and parts[0].isdigit() else 0
+            minor = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+            patch = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
         except Exception:
             return 8
+        # Новая год-based нумерация Minecraft (26.x, 27.x ...) — с 2026 требует Java 25+.
+        if major >= 26:
+            return 25
         if minor >= 21 or (minor == 20 and patch >= 5):
             return 21
         if minor >= 18:
@@ -794,10 +806,15 @@ class Api:
                 "categories": h.get("categories", []), "author": h.get("author"), "follows": h.get("follows")})
         return {"hits": hits, "total": data.get("total_hits", 0)}
 
-    def search_modpacks(self, query, version, offset=0, sort="relevance"):
+    def search_modpacks(self, query, version, category=None, offset=0, sort="relevance"):
         facets = [["project_type:modpack"]]
         if version:
             facets.append([f"versions:{version}"])
+        if category:
+            cats = category if isinstance(category, list) else [category]
+            for c in cats:
+                if c:
+                    facets.append([f"categories:{c}"])
         params = {"query": query or "", "limit": "20", "offset": str(offset), "index": sort or "relevance", "facets": json.dumps(facets)}
         url = f"{MODRINTH_API}/search?" + urllib.parse.urlencode(params)
         try:
@@ -965,6 +982,20 @@ class Api:
                 if fn and ver:
                     fresh[fn]["project_id"] = ver.get("project_id")
                     fresh[fn]["version"] = ver.get("version_number")
+            # иконки опознанных проектов — одним запросом /projects
+            need_icons = sorted({rec.get("project_id") for rec in fresh.values()
+                                 if rec.get("project_id") and not rec.get("icon_url")})
+            if need_icons:
+                try:
+                    ids = json.dumps(need_icons)
+                    projs = http_get_json(f"{MODRINTH_API}/projects?ids=" + urllib.parse.quote(ids))
+                    icons = {p.get("id"): p.get("icon_url") for p in (projs or [])}
+                    for rec in fresh.values():
+                        pid = rec.get("project_id")
+                        if pid and pid in icons:
+                            rec["icon_url"] = icons[pid]
+                except Exception:
+                    pass
         try:
             with open(cache_path, "w", encoding="utf-8") as f:
                 json.dump(fresh, f, ensure_ascii=False)
@@ -974,7 +1005,7 @@ class Api:
         for fn, rec in fresh.items():
             pid = rec.get("project_id")
             if pid:
-                out[pid] = {"version": rec.get("version"), "filename": fn}
+                out[pid] = {"version": rec.get("version"), "filename": fn, "icon_url": rec.get("icon_url", "")}
         return {"map": out}
 
     def install_modpack(self, profile_id, project_id):
@@ -1053,12 +1084,28 @@ class Api:
             return "forge" in low and "neoforge" not in low
         return loader in low
 
+    def _neoforge_prefix(self, base_version):
+        # NeoForge именует папку без версии игры: 1.21.1 -> neoforge-21.1.x, префикс "21.1."
+        parts = base_version.split(".")
+        if len(parts) < 2:
+            return None
+        minor = parts[1]
+        patch = parts[2] if len(parts) > 2 else "0"
+        return f"{minor}.{patch}."
+
     def _find_loader_version(self, mc, loader, base_version):
         try:
             installed = minecraft_launcher_lib.utils.get_installed_versions(mc)
+            nf_prefix = self._neoforge_prefix(base_version) if loader == "neoforge" else None
             for v in installed:
                 vid = v.get("id", "")
-                if self._loader_matches(vid, loader) and base_version in vid:
+                if not self._loader_matches(vid, loader):
+                    continue
+                if loader == "neoforge":
+                    ver_part = vid.lower().replace("neoforge-", "")
+                    if nf_prefix and ver_part.startswith(nf_prefix):
+                        return vid
+                elif base_version in vid:
                     return vid
         except Exception:
             pass
@@ -1074,7 +1121,7 @@ class Api:
         try:
             mc = profile_game_dir(profile_id)
             if loader in ("fabric", "quilt", "forge", "neoforge"):
-                vid = self._find_loader_version(mc, version, loader)
+                vid = self._find_loader_version(mc, loader, version)
                 if not vid:
                     return {"installed": False}
             else:
@@ -1202,6 +1249,12 @@ class Api:
             raise RuntimeError(f"Installer NeoForge вернул ошибку:\n{tail}")
 
     def _do_install(self, mc, version, loader, state):
+        # Если загрузчик под эту версию игры уже установлен — не ставим новый (дубль),
+        # запускаем существующий. Иначе автообновление ломает рабочую сборку модов.
+        if loader in ("fabric", "quilt", "forge", "neoforge"):
+            existing = self._find_loader_version(mc, loader, version)
+            if existing:
+                return existing  # уже установлен под эту версию
         callback = self._make_callback(state)
         self._progress("Скачивание Minecraft " + version, 0, 1)
         minecraft_launcher_lib.install.install_minecraft_version(version, mc, callback=callback)
@@ -1222,7 +1275,7 @@ class Api:
             self._progress("Установка NeoForge…", 0, 1)
             self._install_neoforge(mc, version, callback)
         if loader in ("fabric", "quilt", "forge", "neoforge"):
-            found = self._find_loader_version(mc, version, loader)
+            found = self._find_loader_version(mc, loader, version)
             if not found:
                 raise RuntimeError(f"{loader} установился, но версия не найдена в versions/.")
             return found
@@ -1273,7 +1326,7 @@ class Api:
                 return
             mc = profile_game_dir(profile_id)
             if loader in ("fabric", "quilt", "forge", "neoforge"):
-                launch_version = self._find_loader_version(mc, version, loader)
+                launch_version = self._find_loader_version(mc, loader, version)
             else:
                 launch_version = version
             vjson = os.path.join(mc, "versions", launch_version, launch_version + ".json") if launch_version else ""
@@ -1353,7 +1406,8 @@ class Api:
                     _window.minimize()
             except Exception:
                 pass
-            threading.Thread(target=self._watch_process, args=(proc, log_path, logf), daemon=True).start()
+            import time as _t
+            threading.Thread(target=self._watch_process, args=(proc, log_path, logf, profile_id, _t.time()), daemon=True).start()
         except Exception as e:
             self._err(e)
 
@@ -1361,12 +1415,21 @@ class Api:
 
 
 
-    def _watch_process(self, proc, log_path, logf):
+    def _watch_process(self, proc, log_path, logf, profile_id=None, start_ts=None):
         code = proc.wait()
         try:
             logf.close()
         except Exception:
             pass
+        # накопленное игровое время сеанса -> в UI
+        if profile_id and start_ts:
+            import time as _t
+            secs = int(_t.time() - start_ts)
+            if _window and secs > 0:
+                try:
+                    _window.evaluate_js(f"window.onGameClosed && window.onGameClosed({json.dumps(profile_id)}, {secs})")
+                except Exception:
+                    pass
         if code not in (0, None):
             tail = ""
             try:

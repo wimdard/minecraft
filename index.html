@@ -180,6 +180,7 @@
       <button class="mtype" data-type="resourcepack">🎨 Текстурпаки</button>
       <button class="mtype" data-type="shader">✨ Шейдеры</button>
       <button class="mtype" data-type="modpack">📦 Модпаки</button>
+      <button class="mtype" data-type="browse">🔎 Вне версии</button>
     </div>
     <div class="mods-header">
       <div class="mods-switch"><button id="swSearch" class="active">Поиск</button><button id="swInstalled">Установленные</button><button id="swFav">♥ Избранное</button></div>
@@ -190,6 +191,10 @@
         <button class="sort-chip" data-sort="follows">Залайканные</button>
         <button class="sort-chip" data-sort="newest">Новые</button>
         <button class="sort-chip" data-sort="updated">Обновлённые</button>
+      </div>
+      <div class="browse-filters" id="browseFilters" style="display:none;">
+        <select id="browseVersion" class="browse-sel"><option value="">Любая версия</option></select>
+        <select id="browseLoader" class="browse-sel"><option value="">Любой загрузчик</option></select>
       </div>
       <div class="view-switch" id="viewSwitch">
         <button class="vs-btn active" data-vw="list" title="Список">☰</button>
@@ -435,6 +440,7 @@
       <div class="pm-section-title">Установленные версии</div>
       <div class="ver-list" id="verList"><div class="ver-empty">Загрузка…</div></div>
       <button class="folder-btn" id="openFolderBtn">📁 Открыть папку игры</button>
+      <button class="folder-btn" id="showLogBtn">📄 Показать лог запуска</button>
 
       <div class="pm-divider"></div>
       <button class="pm-add" id="reloadBtn" style="border-style:solid;border-color:var(--accent);color:var(--accent);">🔄 Обновить лаунчер</button>

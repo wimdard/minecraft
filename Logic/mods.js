@@ -6,6 +6,8 @@ const Mods = (() => {
   const typebar = document.getElementById("modsTypebar");
 
   let selectedCats = [], mode = "search", ptype = "mod", currentSort = "relevance";
+  let browseVersion = "", browseLoader = "";
+  const isBrowse = () => ptype === "browse";
   let installedMap = {};
   function applyInstalledMarks() {
     modsList.querySelectorAll(".mod-card[data-pid]").forEach((card) => {
@@ -13,13 +15,13 @@ const Mods = (() => {
       const btn = card.querySelector(".install");
       if (!btn) return;
       if (installedMap[pid] && !btn.classList.contains("installed")) {
-        btn.textContent = "Установлено \u2713";
+        btn.textContent = "Установлено ✓";
         btn.classList.add("installed");
       }
     });
   }
   function refreshInstalledMap() {
-    if (!api() || !hasProfile()) return Promise.resolve();
+    if (!api() || !hasProfile() || isBrowse()) return Promise.resolve();
     return api().installed_map(App.state.activeProfile, ptype).then((r) => {
       installedMap = (r && r.map) || {};
       applyInstalledMarks();
@@ -64,7 +66,7 @@ const Mods = (() => {
     const i = s.bookmarks.findIndex(b => b.project_id === m.project_id);
     if (i >= 0) s.bookmarks.splice(i, 1);
     else {
-      s.bookmarks.push({ project_id: m.project_id, title: m.title, icon_url: m.icon_url, author: m.author, ptype: ptype });
+      s.bookmarks.push({ project_id: m.project_id, title: m.title, icon_url: m.icon_url, author: m.author, ptype: isBrowse() ? "mod" : ptype });
       if (typeof Achievements !== "undefined") Achievements.unlock("fav_mod");
     }
     persist();
@@ -74,6 +76,25 @@ const Mods = (() => {
   document.getElementById("swInstalled").addEventListener("click", () => switchMode("installed"));
   document.getElementById("swFav").addEventListener("click", () => switchMode("fav"));
   modQuery.addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => doSearch(true), 400); });
+
+  const browseBar = document.getElementById("browseFilters");
+  const bvSel = document.getElementById("browseVersion");
+  const blSel = document.getElementById("browseLoader");
+  function fillBrowseFilters() {
+    if (!bvSel || !blSel) return;
+    if (bvSel.options.length <= 1) {
+      bvSel.innerHTML = '<option value="">Любая версия</option>';
+      (App.VERSIONS && App.VERSIONS.length ? App.VERSIONS : FALLBACK_VERSIONS.map(v => ({ id: v })))
+        .filter(v => typeof isBlockedOnArm !== "function" || !isBlockedOnArm(v.id))
+        .forEach(v => { const o = document.createElement("option"); o.value = v.id; o.textContent = v.id; bvSel.appendChild(o); });
+    }
+    if (blSel.options.length <= 1) {
+      blSel.innerHTML = '<option value="">Любой загрузчик</option>';
+      LOADERS.filter(l => l.id !== "vanilla").forEach(l => { const o = document.createElement("option"); o.value = l.id; o.textContent = l.nm; blSel.appendChild(o); });
+    }
+  }
+  if (bvSel) bvSel.addEventListener("change", () => { browseVersion = bvSel.value; doSearch(true); });
+  if (blSel) blSel.addEventListener("change", () => { browseLoader = blSel.value; doSearch(true); });
 
   const importBtn = document.getElementById("modImport");
   if (importBtn) {
@@ -117,18 +138,21 @@ const Mods = (() => {
       ptype = b.dataset.type;
       selectedCats = [];
       const isPack = ptype === "modpack";
-      document.getElementById("swInstalled").style.display = isPack ? "none" : "";
+      const browse = isBrowse();
+      document.getElementById("swInstalled").style.display = (isPack || browse) ? "none" : "";
       document.getElementById("swFav").style.display = isPack ? "none" : "";
-      modsCats.style.display = isPack ? "none" : "";
-      if (importBtn) importBtn.style.display = isPack ? "none" : "";
-      if (isPack) { mode = "search"; document.getElementById("swSearch").classList.add("active"); document.getElementById("swInstalled").classList.remove("active"); document.getElementById("swFav").classList.remove("active"); }
-      else loadCategories();
+      modsCats.style.display = "";
+      if (importBtn) importBtn.style.display = (isPack || browse) ? "none" : "";
+      if (browseBar) browseBar.style.display = browse ? "" : "none";
+      if (browse) fillBrowseFilters();
+      if (isPack || browse) { mode = "search"; document.getElementById("swSearch").classList.add("active"); document.getElementById("swInstalled").classList.remove("active"); document.getElementById("swFav").classList.remove("active"); }
+      loadCategories();
       if (mode === "search") doSearch(true); else if (mode === "installed") showInstalled(); else showFavorites();
     });
   });
 
   function switchMode(m) {
-    if (ptype === "modpack") m = "search";
+    if (ptype === "modpack" || isBrowse()) m = "search";
     mode = m;
     document.getElementById("swSearch").classList.toggle("active", m === "search");
     document.getElementById("swInstalled").classList.toggle("active", m === "installed");
@@ -143,7 +167,9 @@ const Mods = (() => {
     refreshInstalledMap();
     applyView();
     if (viewSwitch) viewSwitch.querySelectorAll(".vs-btn").forEach(b => b.classList.toggle("active", b.dataset.vw === viewMode()));
-    if (ptype !== "modpack") loadCategories();
+    if (browseBar) browseBar.style.display = isBrowse() ? "" : "none";
+    if (isBrowse()) fillBrowseFilters();
+    loadCategories();
     if (mode === "search") doSearch(true); else if (mode === "installed") showInstalled(); else showFavorites();
   }
 
@@ -153,7 +179,8 @@ const Mods = (() => {
   }
 
   function loadCategories() {
-    api().get_categories(ptype).then((res) => {
+    const catType = isBrowse() ? "mod" : ptype;
+    api().get_categories(catType).then((res) => {
       if (res.error) return;
       const all = res.categories;
       modsCats.innerHTML = "";
@@ -162,7 +189,7 @@ const Mods = (() => {
       reset.textContent = "Сбросить всё";
       reset.style.display = selectedCats.length ? "block" : "none";
       reset.onclick = () => { selectedCats = []; loadCategories(); doSearch(true); };
-      if (ptype === "resourcepack") {
+      if (catType === "resourcepack") {
         const resList = RESOLUTIONS.filter(r => all.includes(r));
         const content = CONTENT_TYPES.filter(c => all.includes(c));
         const rest = all.filter(c => !RESOLUTIONS.includes(c) && !CONTENT_TYPES.includes(c));
@@ -223,8 +250,13 @@ const Mods = (() => {
         modsList.appendChild(more);
       }
     };
-    if (ptype === "modpack") api().search_modpacks(modQuery.value.trim(), s.version, offset, currentSort).then((res) => done(res, true));
-    else api().search_mods(modQuery.value.trim(), s.loader, s.version, selectedCats, ptype, offset, currentSort).then((res) => done(res, false));
+    if (ptype === "modpack") {
+      api().search_modpacks(modQuery.value.trim(), s.version, selectedCats, offset, currentSort).then((res) => done(res, true));
+    } else if (isBrowse()) {
+      api().search_mods(modQuery.value.trim(), browseLoader || "", browseVersion || "", selectedCats, "mod", offset, currentSort).then((res) => done(res, false));
+    } else {
+      api().search_mods(modQuery.value.trim(), s.loader, s.version, selectedCats, ptype, offset, currentSort).then((res) => done(res, false));
+    }
   }
 
   function doInstall(projectId, btn) {
@@ -249,12 +281,15 @@ const Mods = (() => {
     const card = document.createElement("div"); card.className = "mod-card";
     const dl = (m.downloads || 0).toLocaleString("ru-RU");
     const fav = isBookmarked(m.project_id);
-    card.innerHTML = `<img class="mod-icon" src="${m.icon_url || ''}" onerror="this.style.visibility='hidden'"><div class="mod-info"><div class="mod-title">${esc(m.title)}</div><div class="mod-desc">${esc(m.description || '')}</div><div class="mod-meta">▼ ${dl} · ${esc(m.author || '')}</div></div><div class="mod-actions"><button class="fav-btn ${fav ? 'on' : ''}" title="В избранное">♥</button><button class="mod-btn install">Установить</button></div>`;
+    const installHtml = isBrowse() ? '' : '<button class="mod-btn install">Установить</button>';
+    card.innerHTML = `<img class="mod-icon" src="${m.icon_url || ''}" onerror="this.style.visibility='hidden'"><div class="mod-info"><div class="mod-title">${esc(m.title)}</div><div class="mod-desc">${esc(m.description || '')}</div><div class="mod-meta">▼ ${dl} · ${esc(m.author || '')}</div></div><div class="mod-actions"><button class="fav-btn ${fav ? 'on' : ''}" title="В избранное">♥</button>${installHtml}</div>`;
     card.addEventListener("click", (e) => { if (e.target.closest(".install") || e.target.closest(".fav-btn")) return; openInfo(m.project_id); });
     card.setAttribute("data-pid", m.project_id);
     const instBtn = card.querySelector(".install");
-    if (installedMap[m.project_id]) { instBtn.textContent = "Установлено \u2713"; instBtn.classList.add("installed"); }
-    instBtn.addEventListener("click", (e) => { e.stopPropagation(); doInstall(m.project_id, e.target).then(() => refreshInstalledMap()); });
+    if (instBtn) {
+      if (installedMap[m.project_id]) { instBtn.textContent = "Установлено ✓"; instBtn.classList.add("installed"); }
+      instBtn.addEventListener("click", (e) => { e.stopPropagation(); doInstall(m.project_id, e.target).then(() => refreshInstalledMap()); });
+    }
     card.querySelector(".fav-btn").addEventListener("click", (e) => { e.stopPropagation(); toggleBookmark(m); e.target.classList.toggle("on"); });
     return card;
   }
@@ -288,6 +323,7 @@ const Mods = (() => {
     document.getElementById("miLinks").innerHTML = "";
     document.getElementById("miIcon").src = "";
     modal.classList.add("show");
+    const linkType = isBrowse() ? "mod" : ptype;
     api().mod_info(projectId).then((r) => {
       if (!r || !r.ok) { document.getElementById("miTitle").textContent = "Не удалось загрузить"; return; }
       document.getElementById("miIcon").src = r.icon_url || "";
@@ -297,15 +333,15 @@ const Mods = (() => {
       const cats = document.getElementById("miCats");
       (r.categories || []).forEach(c => { const s = document.createElement("span"); s.className = "mi-cat"; s.textContent = catRu(c); cats.appendChild(s); });
       const gal = document.getElementById("miGallery");
-      (r.gallery || []).forEach(url => { const img = document.createElement("img"); img.src = url; img.className = "mi-shot"; img.addEventListener("click", () => window.open(url, "_blank")); gal.appendChild(img); });
+      (r.gallery || []).forEach(url => { const img = document.createElement("img"); img.src = url; img.className = "mi-shot"; img.addEventListener("click", () => api() && api().open_url(url)); gal.appendChild(img); });
       const vers = document.getElementById("miVersions");
       const gv = (r.game_versions || []).slice(-8).reverse().join(", ");
       const ld = (r.loaders || []).join(", ");
       vers.innerHTML = `<div class="mi-row"><b>Версии:</b> ${esc(gv || "—")}</div><div class="mi-row"><b>Загрузчики:</b> ${esc(ld || "—")}</div>`;
       const links = document.getElementById("miLinks");
       links.innerHTML = "";
-      const add = (label, url) => { if (url) { const a = document.createElement("a"); a.className = "mi-link"; a.textContent = label; a.href = "#"; a.addEventListener("click", (e)=>{e.preventDefault(); window.open(url,"_blank");}); links.appendChild(a); } };
-      if (r.slug) add("Открыть на Modrinth", `https://modrinth.com/${ptype}/${r.slug}`);
+      const add = (label, url) => { if (url) { const a = document.createElement("a"); a.className = "mi-link"; a.textContent = label; a.href = "#"; a.addEventListener("click", (e)=>{e.preventDefault(); api() && api().open_url(url);}); links.appendChild(a); } };
+      if (r.slug) add("Открыть на Modrinth", `https://modrinth.com/${linkType}/${r.slug}`);
       add("Исходники", r.source_url);
       add("Wiki", r.wiki_url);
       const favBtn = document.getElementById("miFav");
@@ -318,6 +354,8 @@ const Mods = (() => {
         }
       }
       const installBtn = document.getElementById("miInstall");
+      if (isBrowse()) { installBtn.style.display = "none"; return; }
+      installBtn.style.display = "";
       installBtn.disabled = false;
       if (ptype === "modpack") {
         installBtn.textContent = "Установить сборку";
@@ -338,15 +376,15 @@ const Mods = (() => {
             installBtn.disabled = false; installBtn.textContent = "Установить";
             installBtn.onclick = () => doInstall(projectId, installBtn);
           } else if (st.status === "installed") {
-            installBtn.disabled = true; installBtn.textContent = "Установлено \u2713";
+            installBtn.disabled = true; installBtn.textContent = "Установлено ✓";
           } else if (st.status === "outdated") {
             installBtn.disabled = false;
-            installBtn.textContent = "Обновить \u2192 " + (st.latest_version || "");
+            installBtn.textContent = "Обновить → " + (st.latest_version || "");
             installBtn.onclick = () => {
               installBtn.disabled = true; installBtn.textContent = "Обновление…";
               api().update_mod(App.state.activeProfile, projectId, s.loader, s.version, ptype, st.old_filename || "").then((r) => {
-                if (r && r.ok) { installBtn.textContent = "Обновлено \u2713"; }
-                else { installBtn.disabled = false; installBtn.textContent = "Ошибка"; if (r && r.error) askConfirm({ icon:"\u26a0\ufe0f", title:"Не удалось обновить", text: esc(r.error), okText:"Ок" }, null); }
+                if (r && r.ok) { installBtn.textContent = "Обновлено ✓"; }
+                else { installBtn.disabled = false; installBtn.textContent = "Ошибка"; if (r && r.error) askConfirm({ icon:"⚠️", title:"Не удалось обновить", text: esc(r.error), okText:"Ок" }, null); }
               });
             };
           }
@@ -361,12 +399,20 @@ const Mods = (() => {
   function showInstalled() {
     if (!api() || !hasProfile()) return;
     modsList.innerHTML = '<div class="mods-status">Загрузка…</div>';
+    api().installed_map(App.state.activeProfile, ptype).then((im) => {
+      const iconByFile = {};
+      const mp = (im && im.map) || {};
+      Object.keys(mp).forEach(pid => { const rec = mp[pid]; if (rec && rec.filename && rec.icon_url) iconByFile[rec.filename] = rec.icon_url; });
+      return iconByFile;
+    }).catch(() => ({})).then((iconByFile) => {
     api().list_installed(App.state.activeProfile, ptype).then((files) => {
       if (!files.length) { modsList.innerHTML = '<div class="mods-status">Здесь пока пусто</div>'; return; }
       modsList.innerHTML = "";
       files.forEach((f) => {
+        const _icon = iconByFile[f];
         const card = document.createElement("div"); card.className = "mod-card";
-        card.innerHTML = `<div class="mod-icon" style="display:flex;align-items:center;justify-content:center;font-size:22px;">📦</div><div class="mod-info"><div class="mod-title">${esc(f)}</div><div class="mod-meta">Установлен</div></div><div class="mod-actions"><button class="mod-btn remove">Удалить</button></div>`;
+        const iconHtml = _icon ? `<img class="mod-icon" src="${_icon}" onerror="this.style.visibility='hidden'">` : `<div class="mod-icon" style="display:flex;align-items:center;justify-content:center;font-size:22px;">📦</div>`;
+        card.innerHTML = `${iconHtml}<div class="mod-info"><div class="mod-title">${esc(f)}</div><div class="mod-meta">Установлен</div></div><div class="mod-actions"><button class="mod-btn remove">Удалить</button></div>`;
         card.querySelector(".remove").addEventListener("click", () => {
           askConfirm({ icon:"🗑", title:"Удалить?", text: esc(f), okText:"Удалить", okClass:"btn-danger" }, () => {
             api().delete_mod(App.state.activeProfile, f, ptype).then((r) => { if (r.ok) card.remove(); });
@@ -374,6 +420,7 @@ const Mods = (() => {
         });
         modsList.appendChild(card);
       });
+    });
     });
   }
 

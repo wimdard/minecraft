@@ -1,9 +1,8 @@
+*.bak
+*.bak_*
+patch_*.py
 __pycache__/
 *.pyc
+iconfix-agent/
+agents/
 .DS_Store
-venv/
-build/
-dist/
-*.spec
-lwjgl_3.3.3/
-intel_jdk8/

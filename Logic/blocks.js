@@ -205,7 +205,7 @@ const Blocks = (() => {
     const link = el.querySelector('[data-role="link"]');
     if (link) {
       link.addEventListener("mousedown", e => e.stopPropagation());
-      link.addEventListener("click", (e) => { e.stopPropagation(); const u = link.dataset.url; if (u) window.open(u, "_blank"); });
+      link.addEventListener("click", (e) => { e.stopPropagation(); const u = link.dataset.url; if (u) { if (window.pywebview && window.pywebview.api) window.pywebview.api.open_url(u); } });
     }
 
     makeDraggable(el);
