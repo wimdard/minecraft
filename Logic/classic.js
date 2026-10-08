@@ -190,5 +190,5 @@ const Classic = (() => {
   };
 
   function initDropdown() {}
-  return { render, initDropdown, play };
+  return { render, initDropdown, play, rebuild: function () { if (wrap.classList.contains("open")) buildMenu(); } };
 })();

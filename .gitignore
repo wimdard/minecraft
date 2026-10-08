@@ -6,3 +6,4 @@ __pycache__/
 iconfix-agent/
 agents/
 .DS_Store
+dump_*.py

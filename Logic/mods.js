@@ -261,8 +261,36 @@ const Mods = (() => {
 
   function doInstall(projectId, btn) {
     const s = activeProfile().settings;
+    if (btn) { btn.disabled = true; btn.textContent = "Проверка…"; }
+    return api().resolve_mod(projectId, s.loader, s.version, ptype).then((info) => {
+      if (!info || !info.ok) {
+        if (btn) { btn.disabled = false; btn.textContent = "Ошибка"; }
+        askConfirm({ icon:"⚠️", title:"Не удалось", text: esc((info && info.error) || "Нет данных"), okText:"Ок" }, null);
+        return;
+      }
+      const deps = info.deps || [];
+      if (btn) { btn.disabled = false; btn.textContent = "Установить"; }
+      if (!deps.length) return _doInstallRun(projectId, [], btn);
+      const row = (d) => `<label class="dep-row"><input type="checkbox" class="dep-chk" value="${esc(d.project_id)}"${d.type === "required" ? " checked" : ""}><img class="dep-ic" src="${d.icon_url || ''}" onerror="this.style.visibility='hidden'"><span class="dep-nm">${esc(d.name)}</span>${d.type === "optional" ? '<em class="dep-tag">опционально</em>' : ''}</label>`;
+      const main = `<div class="dep-main"><img class="dep-ic" src="${info.main.icon_url || ''}" onerror="this.style.visibility='hidden'"><b>${esc(info.main.name)}</b></div>`;
+      const bar = `<div class="dep-bar"><button type="button" id="depAll" class="dep-allbtn">Добавить все</button><button type="button" id="depNone" class="dep-allbtn">Убрать все</button></div>`;
+      const html = `${main}<div class="dep-head">Требования:</div>${bar}<div class="dep-list">${deps.map(row).join('')}</div>`;
+      askConfirm({ icon:"🧩", title:"Установка мода", text: html, okText:"Установить", okClass:"btn-save" }, () => {
+        const box = document.getElementById("cmText");
+        const ids = Array.from(box.querySelectorAll(".dep-chk:checked")).map((c) => c.value);
+        _doInstallRun(projectId, ids, btn);
+      });
+      const box = document.getElementById("cmText");
+      const all = box.querySelector("#depAll"), none = box.querySelector("#depNone");
+      if (all) all.addEventListener("click", () => box.querySelectorAll(".dep-chk").forEach((c) => { c.checked = true; }));
+      if (none) none.addEventListener("click", () => box.querySelectorAll(".dep-chk").forEach((c) => { c.checked = false; }));
+    });
+  }
+
+  function _doInstallRun(projectId, depIds, btn) {
+    const s = activeProfile().settings;
     if (btn) { btn.disabled = true; btn.textContent = "Установка…"; }
-    return api().install_mod(App.state.activeProfile, projectId, s.loader, s.version, ptype).then((r) => {
+    return api().install_mod(App.state.activeProfile, projectId, s.loader, s.version, ptype, depIds).then((r) => {
       if (btn) {
         if (r.ok) btn.textContent = "✓";
         else { btn.disabled = false; btn.textContent = "Ошибка"; askConfirm({ icon:"⚠️", title:"Не удалось", text: esc(r.error), okText:"Ок" }, null); }

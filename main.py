@@ -13,9 +13,8 @@ import urllib.request
 import urllib.parse
 import uuid
 import minecraft_launcher_lib
-
-
 import ssl
+
 try:
     import certifi
     os.environ.setdefault("SSL_CERT_FILE", certifi.where())
@@ -34,19 +33,14 @@ APP_VERSION = "0.1.0"
 GITHUB_REPO = "wimdard/minecraft"
 GITHUB_RAW = "https://raw.githubusercontent.com/wimdard/minecraft/main"
 
-
-
 _window = None
 
 def resource_path(rel):
     base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
     return os.path.abspath(os.path.join(base, rel))
 
-
-
 def project_dir():
     return os.path.dirname(os.path.abspath(__file__))
-
 
 def data_dir():
     if sys.platform == "win32":
@@ -58,9 +52,7 @@ def data_dir():
     os.makedirs(base, exist_ok=True)
     return base
 
-
 CONFIG = os.path.join(data_dir(), "profiles.json")
-
 
 def profile_game_dir(profile_id):
     """Вариант A: у каждого профиля своя изолированная игровая директория."""
@@ -69,13 +61,68 @@ def profile_game_dir(profile_id):
     os.makedirs(d, exist_ok=True)
     return d
 
+def _active_vl(profile_id):
+    """Активная версия+загрузчик профиля из profiles.json (для изоляции модов)."""
+    try:
+        with open(CONFIG, "r", encoding="utf-8") as f:
+            st = json.load(f)
+        p = (st.get("profiles") or {}).get(profile_id) or {}
+        s = p.get("settings") or {}
+        return (s.get("version") or ""), (s.get("loader") or "vanilla")
+    except Exception:
+        return "", "vanilla"
 
-def content_dir(profile_id, ptype):
-    folder = {"mod": "mods", "resourcepack": "resourcepacks", "shader": "shaderpacks"}.get(ptype, "mods")
-    d = os.path.join(profile_game_dir(profile_id), folder)
+
+def mods_store_dir(profile_id, version, loader):
+    """Папка-хранилище модов для конкретной версии+загрузчика."""
+    key = (version or "any") + "__" + (loader or "vanilla")
+    key = re.sub(r"[^A-Za-z0-9._-]", "_", key)
+    d = os.path.join(profile_game_dir(profile_id), ".mods", key)
     os.makedirs(d, exist_ok=True)
     return d
 
+
+def _migrate_flat_mods(profile_id):
+    """Разовый перенос старых модов из плоской mods/ в хранилище активной версии."""
+    base = os.path.join(profile_game_dir(profile_id), ".mods")
+    os.makedirs(base, exist_ok=True)
+    marker = os.path.join(base, ".migrated")
+    if os.path.exists(marker):
+        return
+    ver, ldr = _active_vl(profile_id)
+    if not ver:
+        return
+    flat = os.path.join(profile_game_dir(profile_id), "mods")
+    try:
+        jars = [f for f in os.listdir(flat) if f.lower().endswith(".jar")]
+    except Exception:
+        jars = []
+    store = mods_store_dir(profile_id, ver, ldr)
+    for f in jars:
+        try:
+            shutil.move(os.path.join(flat, f), os.path.join(store, f))
+        except Exception:
+            pass
+    try:
+        open(marker, "w").close()
+    except Exception:
+        pass
+
+
+def content_dir(profile_id, ptype, version=None, loader=None):
+    if ptype == "mod":
+        if not version:
+            version, loader = _active_vl(profile_id)
+        if version:
+            _migrate_flat_mods(profile_id)
+            return mods_store_dir(profile_id, version, loader)
+        d = os.path.join(profile_game_dir(profile_id), "mods")
+        os.makedirs(d, exist_ok=True)
+        return d
+    folder = {"resourcepack": "resourcepacks", "shader": "shaderpacks"}.get(ptype, "mods")
+    d = os.path.join(profile_game_dir(profile_id), folder)
+    os.makedirs(d, exist_ok=True)
+    return d
 
 def total_ram_mb():
     try:
@@ -100,7 +147,6 @@ def total_ram_mb():
     except Exception:
         return 8192
 
-
 def cpu_name():
     try:
         if sys.platform == "darwin":
@@ -117,7 +163,6 @@ def cpu_name():
         pass
     return platform.processor() or platform.machine() or "Неизвестно"
 
-
 def os_label():
     try:
         if sys.platform == "darwin":
@@ -129,12 +174,15 @@ def os_label():
     except Exception:
         return platform.system()
 
-
 def http_get_json(url):
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(req, timeout=20) as r:
-        return json.loads(r.read().decode("utf-8"))
-
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return json.loads(r.read().decode("utf-8"))
+    except ssl.SSLError:
+        ctx = ssl._create_unverified_context()
+        with urllib.request.urlopen(req, timeout=20, context=ctx) as r:
+            return json.loads(r.read().decode("utf-8"))
 
 def http_post_json(url, payload):
     data = json.dumps(payload).encode("utf-8")
@@ -142,7 +190,6 @@ def http_post_json(url, payload):
                                  headers={"User-Agent": USER_AGENT, "Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=25) as r:
         return json.loads(r.read().decode("utf-8"))
-
 
 def http_download(url, dest):
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
@@ -153,13 +200,10 @@ def http_download(url, dest):
                 break
             f.write(chunk)
 
-
 def empty_state():
     return {"activeProfile": None, "profiles": {}}
 
-
 FALLBACK_VERSIONS = ["1.21.1", "1.21", "1.20.6", "1.20.4", "1.20.1", "1.19.4", "1.19.2", "1.18.2", "1.16.5", "1.12.2"]
-
 
 def _open_path(path):
     if sys.platform == "darwin":
@@ -168,6 +212,7 @@ def _open_path(path):
         os.startfile(path)  # type: ignore[attr-defined]
     else:
         subprocess.Popen(["xdg-open", path])
+
 
 
 class Api:
@@ -189,8 +234,6 @@ class Api:
             return {"ok": True, "path": dest, "url": "file://" + dest}
         except Exception as e:
             return {"ok": False, "error": str(e)}
-
-
 
     def minimize_window(self):
         try:
@@ -262,7 +305,6 @@ class Api:
                 _window.evaluate_js("window.onUpdateDone && window.onUpdateDone()")
         except Exception as e:
             self._err(e)
-
 
     def _needs_intel_java(self, version):
         """True только для LWJGL 2 (<=1.12) на Apple Silicon — их запускаем через Rosetta."""
@@ -478,9 +520,6 @@ class Api:
                     break
         return cmd
 
-
-
-
     def read_clipboard(self):
         try:
             if sys.platform == "darwin":
@@ -494,7 +533,6 @@ class Api:
                 return {"ok": True, "text": out.stdout.strip()}
         except Exception as e:
             return {"ok": False, "error": str(e)}
-
 
     def pick_images(self):
         try:
@@ -666,14 +704,41 @@ class Api:
             return {"ok": False, "error": str(e)}
 
     def get_versions(self, include_snapshots=False):
-        try:
-            data = http_get_json(MOJANG_MANIFEST)
+        import time
+        cache_path = os.path.join(data_dir(), "versions_cache.json")
+        ttl = 6 * 3600
+        now = time.time()
+
+        def _filter(raw):
             out = []
-            for v in data.get("versions", []):
+            for v in raw:
                 if v.get("type") == "release" or (include_snapshots and v.get("type") == "snapshot"):
                     out.append({"id": v["id"], "type": v["type"]})
-            return {"versions": out}
+            return out
+
+        cached = None
+        try:
+            if os.path.exists(cache_path):
+                with open(cache_path, "r", encoding="utf-8") as f:
+                    cached = json.load(f)
+        except Exception:
+            cached = None
+
+        if cached and cached.get("raw") and (now - cached.get("ts", 0) < ttl):
+            return {"versions": _filter(cached["raw"]), "cached": True}
+
+        try:
+            data = http_get_json(MOJANG_MANIFEST)
+            raw = data.get("versions", [])
+            try:
+                with open(cache_path, "w", encoding="utf-8") as f:
+                    json.dump({"ts": now, "raw": raw}, f)
+            except Exception:
+                pass
+            return {"versions": _filter(raw)}
         except Exception as e:
+            if cached and cached.get("raw"):
+                return {"versions": _filter(cached["raw"]), "stale": True, "error": str(e)}
             return {"error": str(e), "versions": [{"id": v, "type": "release"} for v in FALLBACK_VERSIONS]}
 
         # ---------- состояние ----------
@@ -726,10 +791,6 @@ class Api:
                         os.remove(tmp)
                     except Exception:
                         pass
-
-
-
-
 
     def _java_major(self):
         """Возвращает мажорную версию Java (8, 17, 21...) или 0, если не найдена."""
@@ -860,7 +921,64 @@ class Api:
         cats = [c["name"] for c in data if c.get("project_type") == ptype]
         return {"categories": sorted(set(cats))}
 
-    def install_mod(self, profile_id, project_id, loader, version, ptype="mod"):
+    def install_mod(self, profile_id, project_id, loader, version, ptype="mod", dep_ids=None):
+        done = {}
+        res = self._install_one(profile_id, project_id, loader, version, ptype, done, dep_ids is None)
+        if not res.get("ok"):
+            return res
+        for dpid in (dep_ids or []):
+            if dpid and dpid not in done:
+                try:
+                    self._install_one(profile_id, dpid, loader, version, ptype, done, False)
+                except Exception:
+                    pass
+        res["deps"] = [n for pid, n in done.items() if n and pid != project_id]
+        return res
+
+    def resolve_mod(self, project_id, loader, version, ptype="mod"):
+        """Мод и его зависимости для окна выбора. Ничего не ставит."""
+        def fetch(pid):
+            try:
+                params = {"game_versions": json.dumps([version]) if version else json.dumps([])}
+                if ptype == "mod" and loader and loader != "vanilla":
+                    params["loaders"] = json.dumps([loader])
+                url = f"{MODRINTH_API}/project/{pid}/version?" + urllib.parse.urlencode(params)
+                vs = http_get_json(url)
+            except Exception:
+                return None
+            return vs[0] if vs else None
+        main_ver = fetch(project_id)
+        if not main_ver:
+            return {"ok": False, "error": "Нет подходящей версии под эту версию игры"}
+        deps, seen = [], set()
+        def walk(ver, depth):
+            for d in ver.get("dependencies", []) or []:
+                dt = d.get("dependency_type"); dpid = d.get("project_id")
+                if not dpid or dpid == project_id or dt not in ("required", "optional"):
+                    continue
+                if dpid not in seen:
+                    seen.add(dpid); deps.append({"project_id": dpid, "type": dt})
+                    if dt == "required" and depth < 4:
+                        sub = fetch(dpid)
+                        if sub: walk(sub, depth + 1)
+        walk(main_ver, 0)
+        info = {}
+        try:
+            ids = [project_id] + [d["project_id"] for d in deps]
+            q = urllib.parse.quote(json.dumps(ids))
+            for p in (http_get_json(f"{MODRINTH_API}/projects?ids={q}") or []):
+                info[p.get("id")] = {"name": p.get("title"), "icon_url": p.get("icon_url")}
+        except Exception:
+            pass
+        def nm(pid): return (info.get(pid) or {}).get("name") or pid
+        def ic(pid): return (info.get(pid) or {}).get("icon_url")
+        return {"ok": True,
+                "main": {"project_id": project_id, "name": nm(project_id), "icon_url": ic(project_id)},
+                "deps": [{"project_id": d["project_id"], "type": d["type"], "name": nm(d["project_id"]), "icon_url": ic(d["project_id"])} for d in deps]}
+
+    def _install_one(self, profile_id, project_id, loader, version, ptype, done, auto=True):
+        if project_id in done:
+            return {"ok": True, "filename": done.get(project_id)}
         try:
             params = {"game_versions": json.dumps([version]) if version else json.dumps([])}
             if ptype == "mod" and loader and loader != "vanilla":
@@ -876,11 +994,23 @@ class Api:
         target = next((f for f in files if f.get("primary")), files[0] if files else None)
         if not target:
             return {"ok": False, "error": "У версии нет файла для скачивания"}
-        dest = os.path.join(content_dir(profile_id, ptype), target["filename"])
+        dest = os.path.join(content_dir(profile_id, ptype, version, loader), target["filename"])
         try:
             http_download(target["url"], dest)
         except Exception as e:
             return {"ok": False, "error": f"Ошибка скачивания: {e}"}
+        done[project_id] = target["filename"]
+        if auto and ptype == "mod":
+            for dep in ver.get("dependencies", []) or []:
+                if dep.get("dependency_type") != "required":
+                    continue
+                dpid = dep.get("project_id")
+                if not dpid or dpid in done:
+                    continue
+                try:
+                    self._install_one(profile_id, dpid, loader, version, ptype, done)
+                except Exception:
+                    pass
         return {"ok": True, "filename": target["filename"], "version": ver.get("version_number")}
 
     def _sha1_file(self, path):
@@ -1012,6 +1142,33 @@ class Api:
         threading.Thread(target=self._modpack_worker, args=(profile_id, project_id), daemon=True).start()
         return {"ok": True}
 
+    def _store_modpack_mods(self, dest, mc, profile_id):
+        """Моды установленного модпака переносим в хранилище его версии."""
+        import zipfile
+        try:
+            with zipfile.ZipFile(dest) as z:
+                idx = json.loads(z.read("modrinth.index.json").decode("utf-8"))
+        except Exception:
+            return
+        deps = idx.get("dependencies", {}) or {}
+        base = deps.get("minecraft", "")
+        if not base:
+            return
+        loader = "vanilla"
+        if "fabric-loader" in deps: loader = "fabric"
+        elif "quilt-loader" in deps: loader = "quilt"
+        elif "neoforge" in deps: loader = "neoforge"
+        elif "forge" in deps: loader = "forge"
+        active = os.path.join(mc, "mods")
+        if not os.path.isdir(active):
+            return
+        store = mods_store_dir(profile_id, base, loader)
+        for f in [x for x in os.listdir(active) if x.lower().endswith(".jar")]:
+            try:
+                shutil.move(os.path.join(active, f), os.path.join(store, f))
+            except Exception:
+                pass
+
     def _modpack_worker(self, profile_id, project_id):
         try:
             import minecraft_launcher_lib.mrpack as mrpack
@@ -1038,6 +1195,10 @@ class Api:
             self._progress("Установка модпака…", 0, 1)
             callback = self._make_callback(state)
             mrpack.install_mrpack(dest, mc, callback=callback)
+            try:
+                self._store_modpack_mods(dest, mc, profile_id)
+            except Exception:
+                pass
 
             mc_version = ""
             try:
@@ -1317,6 +1478,24 @@ class Api:
             return False
         return 13 <= int(m.group(1)) <= 18
 
+    def _sync_active_mods(self, mc, profile_id, version, loader):
+        """В <mc>/mods кладём моды только этой версии+загрузчика."""
+        _migrate_flat_mods(profile_id)
+        active = os.path.join(mc, "mods")
+        os.makedirs(active, exist_ok=True)
+        store = mods_store_dir(profile_id, version, loader)
+        store_jars = [f for f in os.listdir(store) if f.lower().endswith(".jar")]
+        for f in [x for x in os.listdir(active) if x.lower().endswith(".jar")]:
+            try:
+                os.remove(os.path.join(active, f))
+            except Exception:
+                pass
+        for f in store_jars:
+            try:
+                shutil.copy2(os.path.join(store, f), os.path.join(active, f))
+            except Exception:
+                pass
+
     def _launch_worker(self, profile_id, version, username, memory, loader, server=""):
         try:
             if self._arm_unsupported(version):
@@ -1341,6 +1520,7 @@ class Api:
                     callback=self._make_callback({"stage": "Восстановление…", "max": 1, "val": 0, "last": 0.0})
                 )
             self._ensure_russian(mc)
+            self._sync_active_mods(mc, profile_id, version, loader)
             mem = int(memory)
             xms = min(mem, max(1024, mem // 2))
             jvm_args = [
@@ -1411,10 +1591,6 @@ class Api:
         except Exception as e:
             self._err(e)
 
-
-
-
-
     def _watch_process(self, proc, log_path, logf, profile_id=None, start_ts=None):
         code = proc.wait()
         try:
@@ -1457,8 +1633,6 @@ class Api:
             _window.load_url(resource_path("index.html"))
         return True
 
-
-
 def start_watcher():
     try:
         from watchdog.observers import Observer
@@ -1485,7 +1659,6 @@ def start_watcher():
     obs.schedule(Handler(), project_dir(), recursive=True)
     obs.daemon = True
     obs.start()
-
 
 if __name__ == "__main__":
     api = Api()

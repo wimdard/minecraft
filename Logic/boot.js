@@ -49,6 +49,7 @@ window.addEventListener("pywebviewready", () => {
       // версии грузим в фоне, уже после показа интерфейса
       window.pywebview.api.get_versions(false).then((res) => {
         App.VERSIONS = (res && res.versions) || FALLBACK_VERSIONS.map(v => ({ id: v, type: "release" }));
+        if (typeof Classic !== "undefined" && Classic.rebuild) Classic.rebuild();
       });
     });
 });

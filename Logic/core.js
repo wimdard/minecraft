@@ -28,7 +28,11 @@ const LOADERS = [
 ];
 
 function loadersFor(versionId) {
-  const m = /1\.(\d+)(?:\.(\d+))?/.exec(versionId || "");
+  const _v = versionId || "";
+  // Год-based версии (26.x и новее): современные загрузчики их поддерживают
+  const _ym = /^(\d{2,})\.(\d+)/.exec(_v);
+  if (_ym && parseInt(_ym[1]) >= 26) return LOADERS.slice();
+  const m = /1\.(\d+)(?:\.(\d+))?/.exec(_v);
   const minor = m ? parseInt(m[1]) : 0;
   const patch = m && m[2] ? parseInt(m[2]) : 0;
   return LOADERS.filter(l => {
