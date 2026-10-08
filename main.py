@@ -1048,6 +1048,30 @@ class Api:
                 return fn, info.get("version_number")
         return None, None
 
+    def update_all(self, profile_id, loader, version, ptype="mod"):
+        try:
+            im = self.installed_map(profile_id, ptype) or {}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+        if not isinstance(im, dict):
+            return {"ok": True, "updated": [], "failed": [], "count": 0}
+        updated, failed, seen = [], [], set()
+        for fn, rec in im.items():
+            pid = (rec or {}).get("project_id")
+            cur = (rec or {}).get("version")
+            if not pid or pid in seen:
+                continue
+            seen.add(pid)
+            try:
+                latest = self._latest_version(pid, loader, version, ptype)
+            except Exception:
+                latest = None
+            latest_ver = latest.get("version_number") if latest else None
+            if latest_ver and cur and latest_ver != cur:
+                r = self.update_mod(profile_id, pid, loader, version, ptype, fn)
+                (updated if r.get("ok") else failed).append(r.get("filename") or fn)
+        return {"ok": True, "updated": updated, "failed": failed, "count": len(updated)}
+
     def mod_status(self, profile_id, project_id, loader, version, ptype="mod"):
         try:
             fn, cur_ver = self._installed_file_for_project(profile_id, project_id, ptype)
@@ -1608,16 +1632,43 @@ class Api:
                     pass
         if code not in (0, None):
             tail = ""
+            full = ""
             try:
                 with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
-                    tail = "".join(f.readlines()[-40:])
+                    full = f.read()
+                tail = "".join(full.splitlines(keepends=True)[-40:])
             except Exception:
                 pass
             if _window:
                 try:
-                    _window.evaluate_js(f"window.onGameCrash && window.onGameCrash({json.dumps(code)}, {json.dumps(tail)})")
+                    _window.evaluate_js(f"window.onGameCrash && window.onGameCrash({json.dumps(code)}, {json.dumps(tail)}, {json.dumps(self._diagnose_crash(full))})")
                 except Exception:
                     pass
+
+    def _diagnose_crash(self, text):
+        import re as _re
+        if not text:
+            return ""
+        low = text.lower()
+        if "outofmemoryerror" in low or "java heap space" in low:
+            return "Не хватило оперативной памяти. Увеличь объём памяти в настройках профиля."
+        if "unsupportedclassversionerror" in low or "compiled by a more recent version of the java runtime" in low:
+            return "Один из модов собран под более новую Java. Поставь мод в версии под твою версию Minecraft."
+        if "mandatory dependenc" in low:
+            return "Forge/NeoForge: некоторым модам не хватает обязательных зависимостей. Доустанови требуемые моды под эту версию."
+        if "incompatible mods" in low or "due to errors, the game cannot be loaded" in low or ("requires" in low and "is missing" in low):
+            names = _re.findall(r"mod '([^']+)'", text)
+            extra = (" Проблемные моды: " + ", ".join(sorted(set(names))[:5]) + ".") if names else ""
+            return "Не хватает зависимостей или моды несовместимы между собой." + extra + " Проверь, что все моды под эту версию игры и загрузчик."
+        if "requires minecraft version" in low or "for a different version of minecraft" in low:
+            return "Какой-то мод рассчитан на другую версию Minecraft. Поставь версии модов под твою версию игры."
+        if "duplicate mod" in low or "duplicatemods" in low:
+            return "Найдены дубликаты модов (один мод в двух версиях). Удали лишние .jar."
+        if "mixin apply failed" in low or "mixinapplyerror" in low or "mixin transformation" in low:
+            return "Ошибка Mixin — обычно конфликт модов или мод под другую версию. Отключай недавно добавленные моды по одному."
+        if "failed to initialize glfw" in low or "glfw error" in low:
+            return "Проблема с графикой/GLFW. На Apple Silicon помогает другая версия игры (1.19.3+ или 1.12.2)."
+        return ""
 
     def get_last_log(self, profile_id):
         mc = profile_game_dir(profile_id)

@@ -164,9 +164,10 @@ const Classic = (() => {
     hideLaunch();
     showLog("Ошибка запуска", msg);
   };
-  window.onGameCrash = function (code, tail) {
+  window.onGameCrash = function (code, tail, reason) {
     hideLaunch();
-    askConfirm({ icon:"💥", title:"Игра завершилась с ошибкой", text: `Код выхода: <b>${esc(String(code))}</b>. Показать последние строки лога?`, okText:"Показать лог", okClass:"btn-warn" }, () => {
+    const rr = reason ? `<div class="crash-reason">⚠️ ${esc(reason)}</div>` : "";
+    askConfirm({ icon:"💥", title:"Игра завершилась с ошибкой", text: `${rr}<div class="crash-code">Код выхода: <b>${esc(String(code))}</b></div>`, okText:"Показать лог", okClass:"btn-warn" }, () => {
       showLog("Лог краша", tail);
     });
   };

@@ -119,6 +119,23 @@ const Mods = (() => {
     });
   }
 
+  const modUpdateAll = document.getElementById("modUpdateAll");
+  if (modUpdateAll) {
+    modUpdateAll.addEventListener("click", () => {
+      if (!hasProfile() || !api()) return;
+      askConfirm({ icon:"⟳", title:"Обновить моды?", text: "Установленные моды будут обновлены до последних версий под текущую версию игры и загрузчик. Старые файлы заменятся новыми.", okText:"Обновить", okClass:"btn-save" }, () => {
+        const s = activeProfile().settings;
+        const orig = modUpdateAll.textContent;
+        modUpdateAll.disabled = true; modUpdateAll.textContent = "Обновляю…";
+        api().update_all(App.state.activeProfile, s.loader, s.version, ptype).then((r) => {
+          modUpdateAll.disabled = false; modUpdateAll.textContent = orig;
+          if (!r || !r.ok) { askConfirm({ icon:"⚠️", title:"Не удалось", text: esc((r && r.error) || "Ошибка"), okText:"Ок" }, null); return; }
+          askConfirm({ icon:"✓", title:"Обновление модов", text: r.count ? ("Обновлено модов: <b>" + r.count + "</b>.") : "Все моды уже актуальны.", okText:"Ок" }, null);
+          if (typeof showInstalled === "function" && mode === "installed") showInstalled();
+        });
+      });
+    });
+  }
   const viewSwitch = document.getElementById("viewSwitch");
   if (viewSwitch) {
     viewSwitch.querySelectorAll(".vs-btn").forEach((b) => {
