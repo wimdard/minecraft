@@ -262,3 +262,40 @@ body.skin-switching * { transition:none !important; }
 /* Селекторы вкладки "Вне версии" */
 .browse-filters { display:flex; gap:8px; align-items:center; }
 .browse-sel { background:#14171c; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-size:13px; cursor:pointer; }
+
+
+/* Конструктор интерфейса (бета) */
+#builderOverlay{ position:fixed; inset:0; z-index:90000; background:#0d0f12; display:none; flex-direction:column; }
+#builderOverlay.show{ display:flex; }
+.bld-bar{ display:flex; align-items:center; justify-content:space-between; padding:12px 18px; border-bottom:1px solid rgba(255,255,255,.1); }
+.bld-title{ font-weight:700; font-size:15px; }
+.bld-btn{ padding:7px 14px; margin-left:8px; border-radius:8px; border:1px solid rgba(255,255,255,.15); background:rgba(255,255,255,.05); color:inherit; cursor:pointer; }
+.bld-btn:hover{ background:rgba(255,255,255,.12); }
+.bld-body{ flex:1; display:flex; min-height:0; }
+.bld-palette{ width:220px; flex:none; padding:14px; overflow-y:auto; border-right:1px solid rgba(255,255,255,.1); display:flex; flex-direction:column; gap:8px; }
+.bld-pal-item{ padding:10px 12px; border-radius:9px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); color:inherit; cursor:pointer; text-align:left; font-size:13px; }
+.bld-pal-item:hover{ background:rgba(255,255,255,.12); border-color:var(--accent); }
+.bld-canvas{ flex:1; position:relative; overflow:hidden; background:
+  linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px) 0 0 / 20px 20px,
+  linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px) 0 0 / 20px 20px; }
+.bld-hint{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:14px; text-align:center; padding:20px; }
+.bld-node{ position:absolute; padding:10px 14px; border-radius:9px; border:1px solid var(--accent); background:rgba(0,0,0,.5); color:#fff; cursor:grab; user-select:none; font-size:13px; white-space:nowrap; }
+.bld-node:active{ cursor:grabbing; }
+.bld-del{ margin-left:8px; opacity:.6; cursor:pointer; }
+.bld-del:hover{ opacity:1; color:var(--bad); }
+
+/* Кастомный лейаут (бета) */
+#customHost{ display:none; position:fixed; top:60px; left:0; right:0; bottom:0; overflow:auto; z-index:1; }
+body[data-view="custom"].tab-home #customHost{ display:block; }
+body[data-view="custom"].tab-home #page-home,
+body[data-view="custom"].tab-home #classicView{ display:none !important; }
+
+/* скрытие панели в кастом-режиме (только на главной) */
+body[data-view="custom"].tab-home .topbar{ height:0 !important; min-height:0 !important; padding:0 !important; border:none !important; background:transparent !important; overflow:visible !important; }
+body[data-view="custom"].tab-home .topbar .logo,
+body[data-view="custom"].tab-home .topbar .tabs,
+body[data-view="custom"].tab-home .topbar .profile-wrap,
+body[data-view="custom"].tab-home #topSettings,
+body[data-view="custom"].tab-home #editBtn,
+body[data-view="custom"].tab-home #addBtn{ display:none !important; }
+body[data-view="custom"].tab-home #customHost{ top:0 !important; }

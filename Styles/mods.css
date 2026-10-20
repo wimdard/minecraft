@@ -326,3 +326,145 @@ idea-view-modal .mi-close { position:absolute; top:16px; right:18px; z-index:5;w
 .mods-upbtn:disabled{opacity:.6;cursor:default;}
 .mods-upbtn.spin{animation:modsSpin .8s linear infinite;}
 @keyframes modsSpin{to{transform:rotate(360deg);}}
+/* Вкл/выкл мода без удаления */
+.mod-btn.mod-toggle { background:rgba(255,255,255,0.07); color:var(--text); margin-right:8px; transition:background .12s; }
+.mod-btn.mod-toggle:hover { background:rgba(255,255,255,0.14); }
+.mod-btn.mod-toggle.on { background:var(--accent); color:#fff; }
+.mod-btn.mod-toggle:disabled { opacity:.6; cursor:default; }
+.mod-card.off .mod-icon, .mod-card.off .mod-info { opacity:.45; filter:grayscale(1); }
+.mod-card.off .mod-meta { color:var(--warn); }
+
+/* Статус серверов: иконка, пинг, статус на кнопке выбора */
+.sv-icon { width:18px; height:18px; border-radius:4px; flex:none; image-rendering:pixelated; margin-right:2px; vertical-align:middle; }
+.sv-ping { font-weight:600; }
+.sv-ping.good { color:var(--accent); }
+.sv-ping.mid { color:var(--warn); }
+.sv-ping.bad { color:var(--bad); }
+#svVal { display:inline-flex; align-items:center; gap:6px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#svVal .sv-dot { display:inline-block; width:8px; height:8px; border-radius:50%; flex:none; background:var(--muted); }
+#svVal .sv-dot.on { background:var(--accent); }
+#svVal .sv-dot.off { background:var(--bad); }
+#svVal .sv-info { color:var(--muted); font-size:12px; }
+
+/* Скриншоты */
+#page-shots { padding:20px 28px; box-sizing:border-box; overflow-y:auto; }
+.shots-header { display:flex; align-items:center; gap:10px; }
+.shots-header h3 { margin-right:4px; }
+.shots-header .mod-import-btn:first-of-type { margin-left:auto; }
+.shots-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:14px; margin-top:16px; }
+.shot-card { background:var(--card); border:1px solid var(--border); border-radius:12px; overflow:hidden; cursor:pointer; transition:transform .15s, border-color .15s; }
+.shot-card:hover { transform:translateY(-2px); border-color:var(--accent); }
+.shot-thumb { aspect-ratio:16/9; background:#1c2026 center/cover no-repeat; opacity:.35; transition:opacity .25s; }
+.shot-thumb.ready { opacity:1; }
+.shot-meta { padding:8px 12px; font-size:12px; color:var(--muted); }
+.shots-grid .mods-status { grid-column:1 / -1; }
+.shot-view { width:min(92vw, 1400px); max-height:92vh; display:flex; flex-direction:column; background:#0e1013; border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+.shot-view img { display:block; width:100%; max-height:calc(92vh - 58px); object-fit:contain; background:#000; min-height:200px; }
+.shot-bar { display:flex; align-items:center; gap:10px; padding:10px 14px; }
+.shot-name { font-size:13px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.shot-spacer { flex:1; }
+.shot-nav { width:34px; height:34px; border:none; border-radius:8px; background:rgba(255,255,255,0.07); color:var(--text); font-size:20px; cursor:pointer; }
+.shot-nav:hover { background:rgba(255,255,255,0.14); }
+.shot-close { position:static; }
+
+/* Статистика (над достижениями) */
+.stats-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:18px; }
+.st-tiles { display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; }
+.st-tile { background:rgba(255,255,255,0.04); border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:4px; min-width:0; }
+.st-tile b { font-size:17px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.st-tile span { font-size:12px; color:var(--muted); }
+.st-list { margin-top:14px; display:flex; flex-direction:column; gap:8px; }
+.st-row { display:grid; grid-template-columns:180px 1fr 100px; align-items:center; gap:12px; font-size:13px; }
+.st-nm { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.st-bar { height:8px; border-radius:8px; background:rgba(255,255,255,0.06); overflow:hidden; }
+.st-bar i { display:block; height:100%; border-radius:8px; background:var(--accent); }
+.st-val { text-align:right; color:var(--muted); }
+.st-empty { margin-top:12px; font-size:13px; color:var(--muted); }
+
+/* Java и запуск */
+.jvm-presets { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:6px 0 10px; }
+.jvm-presets button { position:relative; overflow:hidden; display:flex; flex-direction:column; align-items:flex-start; gap:3px; text-align:left; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:var(--card); color:var(--muted); font-size:13px; font-weight:600; cursor:pointer; transition:background .12s, color .12s, border-color .12s; }
+.jvm-presets button span { position:relative; font-size:11px; font-weight:400; color:var(--muted); }
+.jvm-presets button:hover { color:var(--text); border-color:color-mix(in srgb, var(--accent) 40%, transparent); }
+.jvm-presets button.active { color:var(--text); border-color:var(--accent); }
+.jvm-presets button.active::before { content:""; position:absolute; inset:0; background:var(--accent); opacity:0.14; pointer-events:none; }
+.jvm-args { width:100%; box-sizing:border-box; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--card); color:var(--text); font:12px/1.4 ui-monospace, Menlo, monospace; resize:vertical; }
+.jvm-java { display:flex; align-items:center; gap:8px; }
+.jvm-java-val { flex:1; min-width:0; font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; direction:rtl; text-align:left; }
+.jvm-java .folder-btn { width:auto; margin:0; padding:6px 10px; }
+
+/* Наборы модов */
+/* как .mtype / .sort-chip: рамка + лёгкий оттенок акцента у активного */
+.modset-bar { display:flex; align-items:center; gap:8px; margin-bottom:16px; }
+.modset-lbl { font-size:13px; font-weight:600; color:var(--muted); flex:none; margin-right:4px; }
+.modset-chips { display:flex; gap:8px; min-width:0; overflow-x:auto; scrollbar-width:none; }
+.modset-chips::-webkit-scrollbar { display:none; }
+.modset-chip { position:relative; display:inline-flex; align-items:center; gap:8px; flex:none; padding:8px 14px; border:1px solid var(--border); border-radius:8px; background:var(--card); color:var(--muted); font-size:12px; font-weight:600; white-space:nowrap; cursor:pointer; overflow:hidden; transition:background .12s, color .12s, border-color .12s; }
+.modset-chip:hover { color:var(--text); border-color:color-mix(in srgb, var(--accent) 40%, transparent); }
+.modset-chip.active { color:var(--text); border-color:var(--accent); cursor:default; }
+.modset-chip.active::before { content:""; position:absolute; inset:0; background:var(--accent); opacity:0.16; pointer-events:none; }
+.modset-chip > * { position:relative; }
+.modset-x { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; margin-right:-4px; border-radius:4px; font-style:normal; font-size:14px; line-height:1; color:var(--muted); opacity:0; transition:opacity .12s, background .12s, color .12s; }
+.modset-chip:hover .modset-x { opacity:1; }
+.modset-x:hover { background:rgba(229,57,53,0.15); color:#ff6b6b; }
+.modset-add { flex:none; padding:8px 14px; border:1px dashed var(--border); border-radius:8px; background:transparent; color:var(--muted); font-size:12px; font-weight:600; white-space:nowrap; cursor:pointer; transition:color .12s, border-color .12s; }
+.modset-add:hover { color:var(--text); border-color:var(--accent); }
+.ms-input { display:block; width:100%; box-sizing:border-box; margin:14px 0 10px; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:var(--card); color:var(--text); font-size:14px; }
+.ms-copy { display:flex; align-items:center; gap:8px; justify-content:center; font-size:13px; color:var(--muted); cursor:pointer; }
+
+/* Уведомления серверов */
+.sv-bell { border:none; background:transparent; cursor:pointer; font-size:14px; opacity:.45; padding:2px 4px; border-radius:6px; }
+.sv-bell:hover { opacity:1; background:rgba(255,255,255,0.08); }
+.sv-bell.on { opacity:1; }
+
+/* Контент: строка 1 — поиск и фильтры, строка 2 — наборы модов и действия */
+.mods-header { flex-wrap:wrap; row-gap:10px; }
+.mods-search { flex:1 1 260px; min-width:240px; }
+.mods-toolbar { display:flex; align-items:center; gap:12px; margin-bottom:16px; min-height:34px; }
+.mods-toolbar .modset-bar { margin-bottom:0; min-width:0; }
+.mods-actions { display:flex; align-items:center; gap:8px; margin-left:auto; flex:none; }
+.mods-actions .mod-import-btn { padding:8px 12px; border-radius:8px; font-size:12px; color:var(--muted); transition:color .12s, border-color .12s; }
+.mods-actions .mod-import-btn:hover { color:var(--text); border-color:color-mix(in srgb, var(--accent) 40%, transparent); }
+.mods-actions .mod-import-btn:disabled { opacity:.6; cursor:default; }
+
+/* Заметный поиск модов */
+.mods-search { position:relative; flex:1 1 320px; min-width:280px; }
+.mods-search::before { content:""; position:absolute; left:14px; top:50%; width:16px; height:16px; transform:translateY(-50%); pointer-events:none; opacity:.75;
+  background:no-repeat center/16px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23aab2bd' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3.5-3.5'/%3E%3C/svg%3E"); }
+.mods-search input { height:44px; box-sizing:border-box; padding:0 44px 0 42px; font-size:15px; border-radius:12px;
+  background:color-mix(in srgb, var(--card) 85%, #fff 15%); border:1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  transition:border-color .15s, box-shadow .15s, background .15s; }
+.mods-search input::placeholder { color:var(--muted); opacity:.9; }
+.mods-search input:hover { border-color:color-mix(in srgb, var(--accent) 60%, var(--border)); }
+.mods-search input:focus { border-color:var(--accent); background:var(--card); box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+.mods-search:focus-within::before { opacity:1; }
+.mods-search-kbd { position:absolute; right:12px; top:50%; transform:translateY(-50%); min-width:20px; height:22px; padding:0 6px; box-sizing:border-box; display:flex; align-items:center; justify-content:center;
+  border:1px solid var(--border); border-radius:6px; background:rgba(255,255,255,0.05); color:var(--muted); font:600 12px/1 ui-monospace, Menlo, monospace; pointer-events:none; transition:opacity .15s; }
+.mods-search:focus-within .mods-search-kbd { opacity:0; }
+
+/* Ползунки обоев и верхней панели — один стиль, потоньше (было 20px в base.css) */
+#bgDim, #bgBlur, #tbTrans, #tbBlur {
+  -webkit-appearance:none; appearance:none;
+  width:100%; height:12px; cursor:pointer; border-radius:3px;
+  background:rgba(255,255,255,0.10);
+}
+#bgDim::-webkit-slider-thumb, #bgBlur::-webkit-slider-thumb,
+#tbTrans::-webkit-slider-thumb, #tbBlur::-webkit-slider-thumb {
+  -webkit-appearance:none; width:5px; height:12px;
+  border-radius:2px; background:var(--accent); box-shadow:0 0 0 1px rgba(0,0,0,0.3);
+}
+
+/* Панель настроек: шире + карточки по разделам */
+.settings-panel { width:460px; padding:16px; gap:10px; }
+.settings-panel-2 { right:484px; width:340px; }      /* 12 + 460 + 12 — встаёт вплотную слева */
+.set-head { font-size:16px; font-weight:700; color:var(--text); padding:2px 4px 4px; }
+.set-card { display:flex; flex-direction:column; gap:10px; flex:none; padding:14px; border:1px solid var(--border); border-radius:12px; background:rgba(255,255,255,0.025); }
+.set-card-title { font-size:13px; font-weight:700; color:var(--text); letter-spacing:.2px; margin-bottom:2px; }
+.set-card .pm-field { margin:0; }
+.set-card .check-row { margin:0; }
+.set-sub { display:flex; align-items:center; gap:8px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); margin-top:4px; }
+.set-sub .add-theme-btn { margin-left:2px; }
+.set-card .beta-feature { display:flex; flex-direction:column; gap:10px; }
+.set-btn-row { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
+.set-btn-row .folder-btn { width:100%; margin:0; padding:8px 6px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.set-more { margin:0; border-style:solid !important; border-color:var(--accent) !important; color:var(--accent) !important; }

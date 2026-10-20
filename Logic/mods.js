@@ -76,6 +76,14 @@ const Mods = (() => {
   document.getElementById("swInstalled").addEventListener("click", () => switchMode("installed"));
   document.getElementById("swFav").addEventListener("click", () => switchMode("fav"));
   modQuery.addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => doSearch(true), 400); });
+  // «/» — сразу в поиск, Esc — очистить
+  document.addEventListener("keydown", (e) => {
+    const page = document.getElementById("page-mods");
+    if (!page || !page.classList.contains("active")) return;
+    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || "");
+    if (e.key === "/" && !typing && searchWrap.style.visibility !== "hidden") { e.preventDefault(); modQuery.focus(); modQuery.select(); }
+    else if (e.key === "Escape" && document.activeElement === modQuery && modQuery.value) { modQuery.value = ""; doSearch(true); }
+  });
 
   const browseBar = document.getElementById("browseFilters");
   const bvSel = document.getElementById("browseVersion");
@@ -136,6 +144,33 @@ const Mods = (() => {
       });
     });
   }
+  const packExport = document.getElementById("packExport");
+  if (packExport) {
+    packExport.addEventListener("click", () => {
+      if (!hasProfile() || !api()) return;
+      const s = activeProfile().settings;
+      const orig = packExport.textContent;
+      packExport.disabled = true; packExport.textContent = "Собираю…";
+      api().export_mrpack(App.state.activeProfile, s.version, s.loader, "").then((r) => {
+        packExport.disabled = false; packExport.textContent = orig;
+        if (!r || (!r.ok && !r.error)) return; // отменили окно сохранения
+        if (!r.ok) { askConfirm({ icon:"⚠️", title:"Не удалось", text: esc(r.error), okText:"Ок" }, null); return; }
+        const extra = r.bundled ? `<br>Не с Modrinth, вложено в файл: <b>${r.bundled}</b>.` : "";
+        askConfirm({ icon:"📤", title:"Сборка сохранена", text: `Модов по ссылкам Modrinth: <b>${r.linked}</b>.${extra}<br>Файл открывается в этом лаунчере, Modrinth App и Prism.`, okText:"Ок" }, null);
+      });
+    });
+  }
+
+  const packImport = document.getElementById("packImport");
+  if (packImport) {
+    packImport.addEventListener("click", () => {
+      if (!hasProfile() || !api()) return;
+      api().import_mrpack(App.state.activeProfile).then((r) => {
+        if (r && !r.ok && r.error) askConfirm({ icon:"⚠️", title:"Не удалось", text: esc(r.error), okText:"Ок" }, null);
+      });
+    });
+  }
+
   const viewSwitch = document.getElementById("viewSwitch");
   if (viewSwitch) {
     viewSwitch.querySelectorAll(".vs-btn").forEach((b) => {
@@ -445,7 +480,7 @@ const Mods = (() => {
     if (!api() || !hasProfile()) return;
     modsList.innerHTML = '<div class="mods-status">Загрузка…</div>';
     api().installed_map(App.state.activeProfile, ptype).then((im) => {
-      const iconByFile = {};
+      const iconByFile = Object.assign({}, (im && im.icons) || {});
       const mp = (im && im.map) || {};
       Object.keys(mp).forEach(pid => { const rec = mp[pid]; if (rec && rec.filename && rec.icon_url) iconByFile[rec.filename] = rec.icon_url; });
       return iconByFile;
@@ -453,14 +488,36 @@ const Mods = (() => {
     api().list_installed(App.state.activeProfile, ptype).then((files) => {
       if (!files.length) { modsList.innerHTML = '<div class="mods-status">Здесь пока пусто</div>'; return; }
       modsList.innerHTML = "";
+      const canToggle = ptype === "mod";
+      const isOff = (name) => /\.disabled$/i.test(name);
       files.forEach((f) => {
-        const _icon = iconByFile[f];
-        const card = document.createElement("div"); card.className = "mod-card";
+        let fn = f;
+        const _icon = iconByFile[fn];
+        const card = document.createElement("div"); card.className = "mod-card" + (isOff(fn) ? " off" : "");
         const iconHtml = _icon ? `<img class="mod-icon" src="${_icon}" onerror="this.style.visibility='hidden'">` : `<div class="mod-icon" style="display:flex;align-items:center;justify-content:center;font-size:22px;">📦</div>`;
-        card.innerHTML = `${iconHtml}<div class="mod-info"><div class="mod-title">${esc(f)}</div><div class="mod-meta">Установлен</div></div><div class="mod-actions"><button class="mod-btn remove">Удалить</button></div>`;
+        const toggleHtml = canToggle ? `<button class="mod-btn mod-toggle"></button>` : "";
+        card.innerHTML = `${iconHtml}<div class="mod-info"><div class="mod-title"></div><div class="mod-meta"></div></div><div class="mod-actions">${toggleHtml}<button class="mod-btn remove">Удалить</button></div>`;
+        const paint = () => {
+          const off = isOff(fn);
+          card.classList.toggle("off", off);
+          card.querySelector(".mod-title").textContent = fn.replace(/\.disabled$/i, "");
+          card.querySelector(".mod-meta").textContent = off ? "Отключён — в игру не попадёт" : "Установлен";
+          const t = card.querySelector(".mod-toggle");
+          if (t) { t.textContent = off ? "Включить" : "Выключить"; t.classList.toggle("on", off); }
+        };
+        paint();
+        const tBtn = card.querySelector(".mod-toggle");
+        if (tBtn) tBtn.addEventListener("click", () => {
+          tBtn.disabled = true;
+          api().toggle_mod(App.state.activeProfile, fn, ptype).then((r) => {
+            tBtn.disabled = false;
+            if (r && r.ok) { fn = r.filename; paint(); }
+            else askConfirm({ icon:"⚠️", title:"Не получилось", text: esc((r && r.error) || "Ошибка"), okText:"Ок" }, null);
+          });
+        });
         card.querySelector(".remove").addEventListener("click", () => {
-          askConfirm({ icon:"🗑", title:"Удалить?", text: esc(f), okText:"Удалить", okClass:"btn-danger" }, () => {
-            api().delete_mod(App.state.activeProfile, f, ptype).then((r) => { if (r.ok) card.remove(); });
+          askConfirm({ icon:"🗑", title:"Удалить?", text: esc(fn.replace(/\.disabled$/i, "")), okText:"Удалить", okClass:"btn-danger" }, () => {
+            api().delete_mod(App.state.activeProfile, fn, ptype).then((r) => { if (r.ok) card.remove(); });
           });
         });
         modsList.appendChild(card);
@@ -487,5 +544,12 @@ const Mods = (() => {
     });
   }
 
-  return { onOpen };
+  // после смены набора модов: пометки «установлен» и текущий список
+  function refresh() {
+    if (!api() || !hasProfile()) return;
+    refreshInstalledMap();
+    if (mode === "installed") showInstalled(); else if (mode === "search") doSearch(true);
+  }
+
+  return { onOpen, refresh, type: () => ptype };
 })();

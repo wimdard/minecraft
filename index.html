@@ -34,6 +34,7 @@
       <button class="tab" data-tab="mods">Контент</button>
       <button class="tab beta-feature" data-tab="datapacks">Датапаки <span class="beta">beta</span></button>
       <button class="tab" data-tab="ideas">Проекты</button>
+      <button class="tab" data-tab="shots">Скриншоты</button>
       <button class="tab" data-tab="ach">Достижения</button>
       <button class="tab" data-tab="updates">Обновления</button>
     </div>
@@ -56,73 +57,127 @@
       <div class="settings-overlay" id="settingsOverlay"></div>
       <div class="settings-panel" id="settingsPanel">
 
-        <div class="pm-section-title">Профиль</div>
-        <div class="pm-field"><label>Имя профиля</label><input type="text" id="setName"></div>
+        <div class="set-head">⚙ Настройки</div>
 
-        <div class="pm-field"><label>Выделяемая память</label>
-          <div class="pm-range-row"><input type="range" id="setMemory" min="1024" step="64"><span class="pm-range-val" id="memVal">4096 МБ</span></div>
-          <div class="pm-mem-status ok" id="memStatus">Норма</div>
-          <div class="pm-hint" id="ramHint">—</div>
-        </div>
+        <!-- Профиль -->
+        <section class="set-card">
+          <div class="set-card-title">👤 Профиль</div>
+          <div class="pm-field"><label>Имя профиля</label><input type="text" id="setName"></div>
+          <div class="pm-field"><label>Выделяемая память</label>
+            <div class="pm-range-row"><input type="range" id="setMemory" min="1024" step="64"><span class="pm-range-val" id="memVal">4096 МБ</span></div>
+            <div class="pm-mem-status ok" id="memStatus">Норма</div>
+            <div class="pm-hint" id="ramHint">—</div>
+          </div>
+        </section>
 
-        <div class="pm-section-title">Вид</div>
-        <div class="view-toggle" id="viewToggle">
-          <button data-view="blocks" class="active">🧩 Блоки</button>
-          <button data-view="classic">▶ Классика</button>
-        </div>
-
-        <div class="pm-field"><label>Затемнение фона</label>
-          <div class="pm-range-row">
-            <div class="range-col">
-              <input type="range" id="bgDim" min="0" max="90" step="1">
-              <div class="range-scale">
-                <span>0</span><span>10</span><span>20</span><span>30</span><span>40</span><span>50</span><span>60</span><span>70</span><span>80</span><span>90</span>
+        <!-- Интерфейс -->
+        <section class="set-card">
+          <div class="set-card-title">🖥 Интерфейс</div>
+          <div class="view-toggle" id="viewToggle">
+            <button data-view="blocks" class="active">🧩 Блоки</button>
+            <button data-view="classic">▶ Классика</button>
+          </div>
+          <div class="pm-field"><label>Прозрачность верхней панели</label>
+            <div class="pm-range-row">
+              <div class="range-col">
+                <input type="range" id="tbTrans" min="0" max="100" step="1">
+                <div class="range-scale">
+                  <span>0</span><span>20</span><span>40</span><span>60</span><span>80</span><span>100</span>
+                </div>
               </div>
+              <span class="pm-range-val" id="tbTransVal">30%</span>
+              <button class="range-reset" id="tbTransReset" title="Сбросить">↺</button>
             </div>
-            <span class="pm-range-val" id="bgDimVal">22%</span>
-            <button class="range-reset" id="bgDimReset" title="Сбросить">↺</button>
           </div>
-        </div>
-
-        <div class="pm-field"><label>Размытие фона</label>
-          <div class="pm-range-row">
-            <div class="range-col">
-              <input type="range" id="bgBlur" min="0" max="20" step="1">
-              <div class="range-scale">
-                <span>0</span><span>4</span><span>8</span><span>12</span><span>16</span><span>20</span>
+          <div class="pm-field"><label>Размытие верхней панели</label>
+            <div class="pm-range-row">
+              <div class="range-col">
+                <input type="range" id="tbBlur" min="0" max="30" step="1">
+                <div class="range-scale">
+                  <span>0</span><span>6</span><span>12</span><span>18</span><span>24</span><span>30</span>
+                </div>
               </div>
+              <span class="pm-range-val" id="tbBlurVal">12px</span>
+              <button class="range-reset" id="tbBlurReset" title="Сбросить">↺</button>
             </div>
-            <span class="pm-range-val" id="bgBlurVal">0px</span>
-            <button class="range-reset" id="bgBlurReset" title="Сбросить">↺</button>
           </div>
-        </div>
+          <label class="check-row">
+            <span class="check-box" id="logoCheck"></span>
+            <span>Логотип по центру</span>
+          </label>
+        </section>
 
-        <div class="pm-section-title">Акцент</div>
-        <div class="theme-row" id="themeRow"></div>
-        <div class="pm-section-title" style="margin-top:12px;">Свои <button class="add-theme-btn" id="addThemeBtn">＋</button></div>
-        <div class="theme-row" id="customThemeRow"></div>
-
-        <div class="beta-feature">
-          <div class="pm-section-title" style="margin-top:12px;">Тема оформления <span class="beta">beta</span></div>
-          <div class="skin-row" id="skinRow">
-            <button class="skin-chip active" data-skin="">Обычная</button>
-            <button class="skin-chip" data-skin="nether">Незер</button>
-            <button class="skin-chip" data-skin="end">Край</button>
-            <button class="skin-chip" data-skin="ocean">Океан</button>
-            <button class="skin-chip" data-skin="cave">Пещера</button>
+        <!-- Фон -->
+        <section class="set-card">
+          <div class="set-card-title">🌄 Фон</div>
+          <label class="check-row">
+            <span class="check-box" id="panoramaCheck"></span>
+            <span>Панорама на фоне</span>
+          </label>
+          <div class="pm-field"><label>Затемнение фона</label>
+            <div class="pm-range-row">
+              <div class="range-col">
+                <input type="range" id="bgDim" min="0" max="90" step="1">
+                <div class="range-scale">
+                  <span>0</span><span>10</span><span>20</span><span>30</span><span>40</span><span>50</span><span>60</span><span>70</span><span>80</span><span>90</span>
+                </div>
+              </div>
+              <span class="pm-range-val" id="bgDimVal">22%</span>
+              <button class="range-reset" id="bgDimReset" title="Сбросить">↺</button>
+            </div>
           </div>
-        </div>
-        <label class="check-row" style="margin-top:12px;">
-          <span class="check-box" id="panoramaCheck"></span>
-          <span>Панорама на фоне</span>
-        </label>
-        <label class="check-row" style="margin-top:8px;">
-          <span class="check-box" id="betaCheck"></span>
-          <span>Показывать бета-функции</span>
-        </label>  
-        
-        <div class="pm-divider"></div>
-        <button class="pm-add" id="openPanel2Btn" style="border-style:solid;border-color:var(--accent);color:var(--accent);">📦 Версии и функции ›</button>
+          <div class="pm-field"><label>Размытие фона</label>
+            <div class="pm-range-row">
+              <div class="range-col">
+                <input type="range" id="bgBlur" min="0" max="20" step="1">
+                <div class="range-scale">
+                  <span>0</span><span>4</span><span>8</span><span>12</span><span>16</span><span>20</span>
+                </div>
+              </div>
+              <span class="pm-range-val" id="bgBlurVal">0px</span>
+              <button class="range-reset" id="bgBlurReset" title="Сбросить">↺</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Цвета и темы -->
+        <section class="set-card">
+          <div class="set-card-title">🎨 Цвета и темы</div>
+          <div class="set-sub">Акцент</div>
+          <div class="theme-row" id="themeRow"></div>
+          <div class="set-sub">Свои <button class="add-theme-btn" id="addThemeBtn">＋</button></div>
+          <div class="theme-row" id="customThemeRow"></div>
+
+          <div class="beta-feature">
+            <div class="set-sub">Тема оформления <span class="beta">beta</span></div>
+            <div class="skin-row" id="skinRow">
+              <button class="skin-chip active" data-skin="">Обычная</button>
+              <button class="skin-chip" data-skin="nether">Незер</button>
+              <button class="skin-chip" data-skin="end">Край</button>
+              <button class="skin-chip" data-skin="ocean">Океан</button>
+              <button class="skin-chip" data-skin="cave">Пещера</button>
+            </div>
+          </div>
+          <div class="beta-feature">
+            <div class="set-sub">Кастомные темы <span class="beta">beta</span></div>
+            <div class="skin-row" id="userThemeRow"></div>
+            <div class="set-btn-row">
+              <button class="folder-btn" id="openThemesBtn">📁 Папка тем</button>
+              <button class="folder-btn" id="importThemeBtn">📥 Из файла</button>
+              <button class="folder-btn" id="reloadThemesBtn">🔄 Обновить</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Прочее -->
+        <section class="set-card">
+          <div class="set-card-title">🧪 Прочее</div>
+          <label class="check-row">
+            <span class="check-box" id="betaCheck"></span>
+            <span>Показывать бета-функции</span>
+          </label>
+          <button class="pm-add set-more" id="openPanel2Btn">📦 Версии, Java и функции ›</button>
+        </section>
 
       </div><!-- /settingsPanel -->
     </div><!-- /settingsWrap -->
@@ -184,7 +239,7 @@
     </div>
     <div class="mods-header">
       <div class="mods-switch"><button id="swSearch" class="active">Поиск</button><button id="swInstalled">Установленные</button><button id="swFav">♥ Избранное</button></div>
-      <div class="mods-search" id="searchWrap"><input type="text" id="modQuery" placeholder="Поиск на Modrinth…"></div>
+      <div class="mods-search" id="searchWrap"><input type="text" id="modQuery" placeholder="Найти мод на Modrinth — например, Sodium" autocomplete="off" spellcheck="false"><kbd class="mods-search-kbd" title="Нажми /, чтобы перейти в поиск">/</kbd></div>
       <div class="sort-bar" id="sortBar">
         <button class="sort-chip active" data-sort="relevance">По релевантности</button>
         <button class="sort-chip" data-sort="downloads">Популярные</button>
@@ -200,8 +255,19 @@
         <button class="vs-btn active" data-vw="list" title="Список">☰</button>
         <button class="vs-btn" data-vw="grid" title="Сетка">▦</button>
       </div>
-      <button class="mod-import-btn" id="modImport" title="Импорт из файла">📥 Импорт</button>
-      <button class="mod-import-btn" id="modUpdateAll" title="Обновить установленные моды">⟳ Обновить моды</button>
+    </div>
+    <div class="mods-toolbar">
+      <div class="modset-bar" id="modSetBar">
+        <span class="modset-lbl">Набор модов</span>
+        <div class="modset-chips" id="modSetChips"></div>
+        <button class="modset-add" id="modSetAdd" title="Новый набор">＋ Новый</button>
+      </div>
+      <div class="mods-actions">
+        <button class="mod-import-btn" id="modImport" title="Добавить файлы модов с диска">📥 Из файла</button>
+        <button class="mod-import-btn" id="modUpdateAll" title="Обновить установленные моды">⟳ Обновить моды</button>
+        <button class="mod-import-btn" id="packExport" title="Сохранить моды этой версии в файл .mrpack">📤 Экспорт сборки</button>
+        <button class="mod-import-btn" id="packImport" title="Установить сборку из файла .mrpack">📦 Импорт сборки</button>
+      </div>
     </div>
     <div class="mods-body">
       <div class="mods-cats" id="modsCats"><h4>Категории</h4></div>
@@ -240,6 +306,17 @@
       <button class="ideas-add-btn" id="ideasAdd">+ Добавить идею</button>
     </div>
     <div class="ideas-grid" id="ideasGrid"></div>
+  </div>
+
+  <!-- Скриншоты -->
+  <div class="page" id="page-shots">
+    <div class="ach-header shots-header">
+      <h3>📸 Скриншоты</h3>
+      <span class="ach-count" id="shotsCount">—</span>
+      <button class="mod-import-btn" id="shotsRefresh" title="Обновить список">⟳</button>
+      <button class="mod-import-btn" id="shotsFolder">📁 Открыть папку</button>
+    </div>
+    <div class="shots-grid" id="shotsGrid"></div>
   </div>
 
   <div class="page" id="page-ach">
@@ -410,6 +487,22 @@
     </div>
   </div>
 
+  <!-- Просмотр скриншота -->
+  <div class="modal-overlay" id="shotModal">
+    <div class="shot-view">
+      <img id="shotImg" alt="">
+      <div class="shot-bar">
+        <button class="shot-nav" id="shotPrev" title="Предыдущий">‹</button>
+        <span class="shot-name" id="shotName">—</span>
+        <button class="shot-nav" id="shotNext" title="Следующий">›</button>
+        <span class="shot-spacer"></span>
+        <button class="mod-import-btn" id="shotOpen">Открыть</button>
+        <button class="mod-btn remove" id="shotDel">Удалить</button>
+        <button class="mi-close shot-close" id="shotClose">×</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Окно: подтверждение -->
   <div class="modal-overlay" id="confirmModal">
     <div class="modal confirm-modal">
@@ -444,6 +537,25 @@
       <button class="folder-btn" id="showLogBtn">📄 Показать лог запуска</button>
 
       <div class="pm-divider"></div>
+      <div class="pm-section-title">Java и запуск</div>
+      <div class="jvm-presets" id="jvmPresets">
+        <button data-preset="aikar">⚖️ Стандарт<span>флаги Aikar, подходят всем</span></button>
+        <button data-preset="light">🪶 Слабый ПК<span>меньше памяти на старте</span></button>
+        <button data-preset="zgc">🚀 Много модов<span>ZGC без фризов, Java 21+</span></button>
+        <button data-preset="custom">🛠 Свои<span>только твои флаги</span></button>
+      </div>
+      <div class="pm-field"><label>Дополнительные флаги JVM</label>
+        <textarea id="jvmArgs" rows="2" class="jvm-args" placeholder="например: -Dsodium.checks.issue2561=false"></textarea>
+      </div>
+      <div class="pm-field"><label>Java</label>
+        <div class="jvm-java">
+          <span id="javaPathVal" class="jvm-java-val">Автоматически</span>
+          <button class="folder-btn" id="javaPickBtn">Выбрать…</button>
+          <button class="folder-btn" id="javaAutoBtn">Авто</button>
+        </div>
+      </div>
+
+      <div class="pm-divider"></div>
       <button class="pm-add" id="reloadBtn" style="border-style:solid;border-color:var(--accent);color:var(--accent);">🔄 Обновить лаунчер</button>
     </div>
   </div>
@@ -459,6 +571,7 @@
   <script src="Logic/livereload.js"></script>
   <script src="Logic/mods.js"></script>
   <script src="Logic/theme.js"></script>
+  <script src="Logic/themes.js"></script>
   <script src="Logic/viewmode.js"></script>
   <script src="Logic/classic.js"></script>
   <script src="Logic/servers.js"></script>
@@ -467,6 +580,11 @@
   <script src="Logic/ideas.js"></script>
   <script src="Logic/achievements.js"></script>
   <script src="Logic/updates.js"></script>
+  <script src="Logic/shots.js"></script>
+  <script src="Logic/stats.js"></script>
+  <script src="Logic/jvm.js"></script>
+  <script src="Logic/modsets.js"></script>
+  <script src="Logic/look.js"></script>
 
 </body>
 </html>

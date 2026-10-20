@@ -29,7 +29,7 @@ MODRINTH_API = "https://api.modrinth.com/v2"
 MOJANG_MANIFEST = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
 NEOFORGE_MAVEN = "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml"
 USER_AGENT = "MCLauncher/1.0 (personal launcher)"
-APP_VERSION = "0.1.0"
+APP_VERSION = "0.1.2"
 GITHUB_REPO = "wimdard/minecraft"
 GITHUB_RAW = "https://raw.githubusercontent.com/wimdard/minecraft/main"
 
@@ -63,20 +63,57 @@ def profile_game_dir(profile_id):
 
 def _active_vl(profile_id):
     """Активная версия+загрузчик профиля из profiles.json (для изоляции модов)."""
+    s = _profile_settings(profile_id)
+    return (s.get("version") or ""), (s.get("loader") or "vanilla")
+
+
+def _profile_settings(profile_id):
+    """settings профиля из profiles.json (пусто, если не нашли)."""
     try:
         with open(CONFIG, "r", encoding="utf-8") as f:
             st = json.load(f)
         p = (st.get("profiles") or {}).get(profile_id) or {}
-        s = p.get("settings") or {}
-        return (s.get("version") or ""), (s.get("loader") or "vanilla")
+        return p.get("settings") or {}
     except Exception:
-        return "", "vanilla"
+        return {}
 
 
-def mods_store_dir(profile_id, version, loader):
-    """Папка-хранилище модов для конкретной версии+загрузчика."""
+# ---------- наборы модов внутри одной версии ----------
+MODSET_DEFAULT = "Основной"
+
+def _modset_key(version, loader):
     key = (version or "any") + "__" + (loader or "vanilla")
-    key = re.sub(r"[^A-Za-z0-9._-]", "_", key)
+    return re.sub(r"[^A-Za-z0-9._-]", "_", key)
+
+def _modset_safe(name):
+    return re.sub(r'[\\/:*?"<>|~]+', "_", (name or "").strip())[:40].strip()
+
+def _modsets_file(profile_id):
+    return os.path.join(profile_game_dir(profile_id), ".mods", "sets.json")
+
+def _modsets_read(profile_id):
+    try:
+        with open(_modsets_file(profile_id), "r", encoding="utf-8") as f:
+            return json.load(f) or {}
+    except Exception:
+        return {}
+
+def _modsets_write(profile_id, data):
+    p = _modsets_file(profile_id)
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with open(p, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+def active_modset(profile_id, version, loader):
+    return _modsets_read(profile_id).get(_modset_key(version, loader)) or MODSET_DEFAULT
+
+
+def mods_store_dir(profile_id, version, loader, modset=None):
+    """Папка-хранилище модов для версии+загрузчика (и активного набора модов)."""
+    key = _modset_key(version, loader)
+    name = modset if modset is not None else active_modset(profile_id, version, loader)
+    if name and name != MODSET_DEFAULT:
+        key = key + "~" + _modset_safe(name)
     d = os.path.join(profile_game_dir(profile_id), ".mods", key)
     os.makedirs(d, exist_ok=True)
     return d
@@ -623,9 +660,72 @@ class Api:
             return {"ok": False, "error": str(e)}
 
     # ---------- сервер: онлайн-статус ----------
+    def _srv_lookup(self, host):
+        """SRV-запись _minecraft._tcp.<host> -> (host, port) или None. Без сторонних библиотек."""
+        import socket, struct, random
+        resolvers = []
+        try:
+            with open("/etc/resolv.conf") as f:
+                for ln in f:
+                    p = ln.split()
+                    if len(p) >= 2 and p[0] == "nameserver" and ":" not in p[1]:
+                        resolvers.append(p[1])
+        except Exception:
+            pass
+        resolvers += ["1.1.1.1", "8.8.8.8"]
+        qname = "_minecraft._tcp." + host.strip(".")
+        tid = random.randint(0, 0xFFFF)
+        q = struct.pack(">HHHHHH", tid, 0x0100, 1, 0, 0, 0)
+        for label in qname.split("."):
+            lb = label.encode("idna")
+            q += bytes([len(lb)]) + lb
+        q += b"\x00" + struct.pack(">HH", 33, 1)
+
+        def read_name(buf, off):
+            labels, jumped, end = [], False, off
+            for _ in range(64):
+                ln = buf[off]
+                if ln == 0:
+                    off += 1; break
+                if ln & 0xC0 == 0xC0:
+                    if not jumped:
+                        end = off + 2
+                    off = ((ln & 0x3F) << 8) | buf[off + 1]; jumped = True; continue
+                labels.append(buf[off + 1:off + 1 + ln].decode("ascii", "ignore")); off += 1 + ln
+            return ".".join(labels), (end if jumped else off)
+
+        for ns in resolvers[:3]:
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                s.settimeout(1.5)
+                s.sendto(q, (ns, 53))
+                buf, _ = s.recvfrom(2048)
+                s.close()
+                rid, flags, qd, an = struct.unpack(">HHHH", buf[:8])
+                if rid != tid or (flags & 0x000F) != 0 or an == 0:
+                    if rid == tid:
+                        return None  # ответ есть, но SRV нет — обычный адрес
+                    continue
+                off = 12
+                for _ in range(qd):
+                    _, off = read_name(buf, off); off += 4
+                for _ in range(an):
+                    _, off = read_name(buf, off)
+                    rtype, _, _, rdlen = struct.unpack(">HHIH", buf[off:off + 10]); off += 10
+                    if rtype == 33:
+                        _, _, port = struct.unpack(">HHH", buf[off:off + 6])
+                        target, _ = read_name(buf, off + 6)
+                        if target:
+                            return target, port
+                    off += rdlen
+                return None
+            except Exception:
+                continue
+        return None
+
     def ping_server(self, address):
-        """Server List Ping: online/offline + игроки + версия."""
-        import socket, struct
+        """Server List Ping: online/offline, игроки, версия, MOTD, иконка, пинг в мс."""
+        import socket, struct, time
 
         def _read_varint(sock):
             num = 0
@@ -651,16 +751,35 @@ class Api:
                     break
             return out
 
+        def _motd(d):
+            if isinstance(d, str):
+                return d
+            if isinstance(d, dict):
+                return (d.get("text") or "") + "".join(_motd(x) for x in d.get("extra", []) or [])
+            if isinstance(d, list):
+                return "".join(_motd(x) for x in d)
+            return ""
+
+        address = (address or "").strip()
         host = address
         port = 25565
+        explicit_port = False
         if ":" in address:
             host, p = address.rsplit(":", 1)
             try:
-                port = int(p)
+                port = int(p); explicit_port = True
             except ValueError:
                 port = 25565
+        conn_host = host
+        if not explicit_port:
+            try:
+                srv = self._srv_lookup(host)
+                if srv:
+                    conn_host, port = srv
+            except Exception:
+                pass
         try:
-            sock = socket.create_connection((host, port), timeout=4)
+            sock = socket.create_connection((conn_host, port), timeout=4)
             sock.settimeout(4)
             host_b = host.encode("utf-8")
             handshake = (b"\x00" + _varint(760)
@@ -677,13 +796,92 @@ class Api:
                 if not chunk:
                     break
                 data += chunk
-            sock.close()
             info = json.loads(data.decode("utf-8", "ignore"))
-            players = info.get("players", {})
-            ver = info.get("version", {})
-            return {"online": True, "now": players.get("online", 0), "max": players.get("max", 0), "version": ver.get("name", "")}
+            latency = None
+            try:
+                t0 = time.time()
+                sock.sendall(_varint(9) + b"\x01" + struct.pack(">q", int(t0 * 1000)))
+                _read_varint(sock); _read_varint(sock); sock.recv(8)
+                latency = int((time.time() - t0) * 1000)
+            except Exception:
+                pass
+            sock.close()
+            players = info.get("players", {}) or {}
+            ver = info.get("version", {}) or {}
+            motd = re.sub(r"§.", "", _motd(info.get("description", ""))).strip()
+            icon = info.get("favicon") or ""
+            if not icon.startswith("data:image/"):
+                icon = ""
+            names = [re.sub(r"§.", "", (p or {}).get("name") or "") for p in (players.get("sample") or [])]
+            # некоторые серверы кладут в sample рекламу/пустые строки вместо ников
+            names = [n for n in names if re.fullmatch(r"[A-Za-z0-9_]{2,16}", n)]
+            return {"online": True, "now": players.get("online", 0), "max": players.get("max", 0),
+                    "version": ver.get("name", ""), "motd": motd[:200], "icon": icon, "ping": latency,
+                    "names": names}
         except Exception as e:
             return {"online": False, "error": str(e)}
+
+    def notify(self, title, text):
+        """Системное уведомление (macOS — Центр уведомлений)."""
+        try:
+            if sys.platform == "darwin":
+                q = lambda s: '"' + str(s).replace("\\", "\\\\").replace('"', '\\"') + '"'
+                subprocess.Popen(["osascript", "-e",
+                                  f"display notification {q(text)} with title {q(title)} sound name \"Glass\""])
+                return {"ok": True}
+            return {"ok": False, "error": "Только macOS"}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    # ---------- скриншоты ----------
+    def _shots_dir(self, profile_id):
+        d = os.path.join(profile_game_dir(profile_id), "screenshots")
+        os.makedirs(d, exist_ok=True)
+        return d
+
+    def _shot_path(self, profile_id, name):
+        d = self._shots_dir(profile_id)
+        p = os.path.normpath(os.path.join(d, os.path.basename(name or "")))
+        return p if p.startswith(os.path.normpath(d)) and os.path.isfile(p) else None
+
+    def list_screenshots(self, profile_id):
+        try:
+            d = self._shots_dir(profile_id)
+            out = []
+            for f in os.listdir(d):
+                if f.lower().endswith((".png", ".jpg", ".jpeg")):
+                    st = os.stat(os.path.join(d, f))
+                    out.append({"name": f, "mtime": int(st.st_mtime), "size": st.st_size})
+            out.sort(key=lambda x: x["mtime"], reverse=True)
+            return {"ok": True, "shots": out}
+        except Exception as e:
+            return {"ok": False, "error": str(e), "shots": []}
+
+    def get_screenshot(self, profile_id, name):
+        p = self._shot_path(profile_id, name)
+        if not p:
+            return {"ok": False}
+        mime = mimetypes.guess_type(p)[0] or "image/png"
+        with open(p, "rb") as f:
+            return {"ok": True, "data": "data:" + mime + ";base64," + base64.b64encode(f.read()).decode("ascii")}
+
+    def open_screenshot(self, profile_id, name):
+        p = self._shot_path(profile_id, name)
+        if not p:
+            return {"ok": False, "error": "Файл не найден"}
+        _open_path(p)
+        return {"ok": True}
+
+    def delete_screenshot(self, profile_id, name):
+        p = self._shot_path(profile_id, name)
+        if not p:
+            return {"ok": False, "error": "Файл не найден"}
+        os.remove(p)
+        return {"ok": True}
+
+    def open_screenshots_folder(self, profile_id):
+        _open_path(self._shots_dir(profile_id))
+        return {"ok": True}
 
     # ---------- система ----------
     def get_system(self):
@@ -1053,15 +1251,15 @@ class Api:
             im = self.installed_map(profile_id, ptype) or {}
         except Exception as e:
             return {"ok": False, "error": str(e)}
-        if not isinstance(im, dict):
+        mp = im.get("map") if isinstance(im, dict) else None
+        if not isinstance(mp, dict):
             return {"ok": True, "updated": [], "failed": [], "count": 0}
-        updated, failed, seen = [], [], set()
-        for fn, rec in im.items():
-            pid = (rec or {}).get("project_id")
+        updated, failed = [], []
+        for pid, rec in mp.items():
+            fn = (rec or {}).get("filename")
             cur = (rec or {}).get("version")
-            if not pid or pid in seen:
+            if not pid or not fn:
                 continue
-            seen.add(pid)
             try:
                 latest = self._latest_version(pid, loader, version, ptype)
             except Exception:
@@ -1087,7 +1285,8 @@ class Api:
             return {"status": "unknown", "error": str(e)}
 
     def update_mod(self, profile_id, project_id, loader, version, ptype="mod", old_filename=""):
-        r = self.install_mod(profile_id, project_id, loader, version, ptype)
+        # dep_ids=[] — зависимости не тянем повторно: они в списке и обновятся своей строкой
+        r = self.install_mod(profile_id, project_id, loader, version, ptype, [])
         if not r.get("ok"):
             return r
         if old_filename and old_filename != r.get("filename"):
@@ -1110,7 +1309,7 @@ class Api:
                 cache = json.load(f)
         except Exception:
             cache = {}
-        files = [fn for fn in os.listdir(d) if fn.lower().endswith((".jar", ".zip"))]
+        files = [fn for fn in os.listdir(d) if fn.lower().endswith((".jar", ".zip", ".jar.disabled"))]
         fresh, to_query = {}, {}
         for fn in files:
             try:
@@ -1155,12 +1354,16 @@ class Api:
                 json.dump(fresh, f, ensure_ascii=False)
         except Exception:
             pass
-        out = {}
+        out, icons = {}, {}
         for fn, rec in fresh.items():
+            if rec.get("icon_url"):
+                icons[fn] = rec.get("icon_url")
+            if fn.lower().endswith(".disabled"):
+                continue  # отключённые моды не считаем установленными (и не обновляем)
             pid = rec.get("project_id")
             if pid:
                 out[pid] = {"version": rec.get("version"), "filename": fn, "icon_url": rec.get("icon_url", "")}
-        return {"map": out}
+        return {"map": out, "icons": icons}
 
     def install_modpack(self, profile_id, project_id):
         threading.Thread(target=self._modpack_worker, args=(profile_id, project_id), daemon=True).start()
@@ -1172,8 +1375,18 @@ class Api:
         try:
             with zipfile.ZipFile(dest) as z:
                 idx = json.loads(z.read("modrinth.index.json").decode("utf-8"))
+                names = z.namelist()
         except Exception:
             return
+        # только моды самой сборки — в mods/ могут лежать копии модов другой версии
+        wanted = set()
+        for fe in idx.get("files", []) or []:
+            p = (fe.get("path") or "").replace("\\", "/")
+            if p.startswith("mods/") and p.lower().endswith(".jar"):
+                wanted.add(os.path.basename(p))
+        for n in names:
+            if (n.startswith("overrides/mods/") or n.startswith("client-overrides/mods/")) and n.lower().endswith(".jar"):
+                wanted.add(os.path.basename(n))
         deps = idx.get("dependencies", {}) or {}
         base = deps.get("minecraft", "")
         if not base:
@@ -1187,7 +1400,7 @@ class Api:
         if not os.path.isdir(active):
             return
         store = mods_store_dir(profile_id, base, loader)
-        for f in [x for x in os.listdir(active) if x.lower().endswith(".jar")]:
+        for f in [x for x in os.listdir(active) if x in wanted]:
             try:
                 shutil.move(os.path.join(active, f), os.path.join(store, f))
             except Exception:
@@ -1241,10 +1454,192 @@ class Api:
         except Exception as e:
             self._err(e)
 
+    # ---------- сборка: экспорт / импорт .mrpack ----------
+    def _loader_version_str(self, mc, loader, version):
+        """Версия загрузчика из установленной папки версии (нужна для .mrpack)."""
+        vid = self._find_loader_version(mc, loader, version) or ""
+        pats = {"fabric": r"fabric-loader-([^-]+)-", "quilt": r"quilt-loader-([^-]+)-",
+                "forge": r"forge-([\w.]+)$", "neoforge": r"neoforge-([\w.\-]+)$"}
+        m = re.search(pats.get(loader, r"^$"), vid)
+        return m.group(1) if m else None
+
+    def export_mrpack(self, profile_id, version, loader, name=""):
+        import zipfile, hashlib
+        try:
+            mc = profile_game_dir(profile_id)
+            store = mods_store_dir(profile_id, version, loader)
+            jars = sorted(f for f in os.listdir(store) if f.lower().endswith(".jar"))
+            if not jars:
+                return {"ok": False, "error": "В этой версии нет включённых модов"}
+            deps = {"minecraft": version}
+            if loader in ("fabric", "quilt", "forge", "neoforge"):
+                lv = self._loader_version_str(mc, loader, version)
+                if not lv:
+                    return {"ok": False, "error": "Не нашёл установленный загрузчик. Запусти эту версию хотя бы раз и попробуй снова."}
+                key = {"fabric": "fabric-loader", "quilt": "quilt-loader"}.get(loader, loader)
+                deps[key] = lv
+            title = (name or "").strip() or f"Сборка {version} {loader}"
+            safe = re.sub(r'[\\/:*?"<>|]+', "_", title)
+            res = _window.create_file_dialog(webview.SAVE_DIALOG, save_filename=safe + ".mrpack")
+            if not res:
+                return {"ok": False}
+            out_path = res if isinstance(res, str) else res[0]
+            if not out_path.lower().endswith(".mrpack"):
+                out_path += ".mrpack"
+            sha1s = {}
+            for f in jars:
+                h = self._sha1_file(os.path.join(store, f))
+                if h:
+                    sha1s[h] = f
+            try:
+                known = http_post_json(f"{MODRINTH_API}/version_files",
+                                       {"hashes": list(sha1s.keys()), "algorithm": "sha1"}) or {}
+            except Exception:
+                known = {}
+            files, overrides = [], []
+            for h, f in sha1s.items():
+                ver = known.get(h)
+                hit = None
+                for vf in (ver or {}).get("files", []):
+                    if (vf.get("hashes") or {}).get("sha1") == h:
+                        hit = vf; break
+                if hit and hit.get("url"):
+                    files.append({"path": "mods/" + f,
+                                  "hashes": {"sha1": h, "sha512": hit["hashes"].get("sha512", "")},
+                                  "downloads": [hit["url"]], "fileSize": hit.get("size", 0)})
+                else:
+                    overrides.append(f)
+            index = {"formatVersion": 1, "game": "minecraft", "versionId": APP_VERSION,
+                     "name": title, "files": files, "dependencies": deps}
+            with zipfile.ZipFile(out_path, "w", zipfile.ZIP_DEFLATED) as z:
+                z.writestr("modrinth.index.json", json.dumps(index, ensure_ascii=False, indent=2))
+                for f in overrides:
+                    z.write(os.path.join(store, f), "overrides/mods/" + f)
+            return {"ok": True, "path": out_path, "linked": len(files), "bundled": len(overrides)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def import_mrpack(self, profile_id):
+        try:
+            res = _window.create_file_dialog(webview.OPEN_DIALOG, allow_multiple=False,
+                                             file_types=("Сборки (*.mrpack)",))
+            if not res:
+                return {"ok": False}
+            src = res[0] if isinstance(res, (list, tuple)) else res
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+        threading.Thread(target=self._mrpack_local_worker, args=(profile_id, src), daemon=True).start()
+        return {"ok": True}
+
+    def _mrpack_local_worker(self, profile_id, src):
+        try:
+            import minecraft_launcher_lib.mrpack as mrpack
+            mc = profile_game_dir(profile_id)
+            state = {"stage": "Установка сборки…", "max": 1, "val": 0, "last": 0.0}
+            self._progress(state["stage"], 0, 1)
+            dest = os.path.join(mc, "_import_" + os.path.basename(src))
+            shutil.copy2(src, dest)
+            mrpack.install_mrpack(dest, mc, callback=self._make_callback(state))
+            try:
+                self._store_modpack_mods(dest, mc, profile_id)
+            except Exception:
+                pass
+            mc_version = ""
+            try:
+                mc_version = mrpack.get_mrpack_launch_version(dest) or ""
+            except Exception:
+                pass
+            try:
+                os.remove(dest)
+            except Exception:
+                pass
+            if _window:
+                _window.evaluate_js(f"window.onModpackInstalled && window.onModpackInstalled({json.dumps(os.path.basename(src))}, {json.dumps(mc_version)})")
+            self._progress("__done__", 1, 1)
+        except Exception as e:
+            self._err(e)
+
+    # ---------- наборы модов ----------
+    def list_mod_sets(self, profile_id, version, loader):
+        key = _modset_key(version, loader)
+        base = os.path.join(profile_game_dir(profile_id), ".mods")
+        os.makedirs(base, exist_ok=True)
+        names = [MODSET_DEFAULT]
+        for d in sorted(os.listdir(base)):
+            if d.startswith(key + "~") and os.path.isdir(os.path.join(base, d)):
+                names.append(d[len(key) + 1:])
+        active = active_modset(profile_id, version, loader)
+        if active not in names:
+            active = MODSET_DEFAULT
+        return {"ok": True, "sets": names, "active": active}
+
+    def _set_active_modset(self, profile_id, version, loader, name):
+        data = _modsets_read(profile_id)
+        key = _modset_key(version, loader)
+        if not name or name == MODSET_DEFAULT:
+            data.pop(key, None)
+        else:
+            data[key] = name
+        _modsets_write(profile_id, data)
+
+    def create_mod_set(self, profile_id, version, loader, name, copy_current=False):
+        name = _modset_safe(name)
+        if not name or name == MODSET_DEFAULT:
+            return {"ok": False, "error": "Придумай другое название"}
+        if name in self.list_mod_sets(profile_id, version, loader)["sets"]:
+            return {"ok": False, "error": "Набор с таким названием уже есть"}
+        src = mods_store_dir(profile_id, version, loader)
+        dst = mods_store_dir(profile_id, version, loader, name)
+        if copy_current:
+            for f in os.listdir(src):
+                if f.lower().endswith((".jar", ".jar.disabled")):
+                    try:
+                        shutil.copy2(os.path.join(src, f), os.path.join(dst, f))
+                    except Exception:
+                        pass
+        self._set_active_modset(profile_id, version, loader, name)
+        return {"ok": True, "active": name}
+
+    def switch_mod_set(self, profile_id, version, loader, name):
+        if name not in self.list_mod_sets(profile_id, version, loader)["sets"]:
+            return {"ok": False, "error": "Набор не найден"}
+        self._set_active_modset(profile_id, version, loader, name)
+        return {"ok": True, "active": name}
+
+    def delete_mod_set(self, profile_id, version, loader, name):
+        if not name or name == MODSET_DEFAULT:
+            return {"ok": False, "error": "Основной набор удалить нельзя"}
+        if name not in self.list_mod_sets(profile_id, version, loader)["sets"]:
+            return {"ok": False, "error": "Набор не найден"}
+        shutil.rmtree(mods_store_dir(profile_id, version, loader, name), ignore_errors=True)
+        if active_modset(profile_id, version, loader) == name:
+            self._set_active_modset(profile_id, version, loader, MODSET_DEFAULT)
+        return {"ok": True, "active": active_modset(profile_id, version, loader)}
+
     def list_installed(self, profile_id, ptype="mod"):
         d = content_dir(profile_id, ptype)
-        exts = (".jar",) if ptype == "mod" else (".zip", ".jar")
-        return sorted([f for f in os.listdir(d) if f.lower().endswith(exts)])
+        exts = (".jar", ".jar.disabled") if ptype == "mod" else (".zip", ".jar")
+        return sorted([f for f in os.listdir(d) if f.lower().endswith(exts)],
+                      key=lambda f: f.lower().replace(".disabled", ""))
+
+    def toggle_mod(self, profile_id, filename, ptype="mod"):
+        """Вкл/выкл мод без удаления: имя.jar <-> имя.jar.disabled."""
+        d = content_dir(profile_id, ptype)
+        path = os.path.normpath(os.path.join(d, filename))
+        if not path.startswith(os.path.normpath(d)) or not os.path.exists(path):
+            return {"ok": False, "error": "Файл не найден"}
+        if filename.lower().endswith(".disabled"):
+            new_name = filename[:-len(".disabled")]
+        else:
+            new_name = filename + ".disabled"
+        new_path = os.path.join(d, new_name)
+        if os.path.exists(new_path):
+            return {"ok": False, "error": "Такой файл уже есть: " + new_name}
+        try:
+            os.rename(path, new_path)
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+        return {"ok": True, "filename": new_name, "enabled": not new_name.lower().endswith(".disabled")}
 
     def delete_mod(self, profile_id, filename, ptype="mod"):
         d = content_dir(profile_id, ptype)
@@ -1520,6 +1915,64 @@ class Api:
             except Exception:
                 pass
 
+    def _jvm_args(self, preset, mem, java_major, extra=""):
+        """Флаги JVM по пресету + свои флаги пользователя."""
+        import shlex
+        xms = min(mem, max(1024, mem // 2))
+        aikar = [
+            "-XX:+UnlockExperimentalVMOptions", "-XX:+UseG1GC", "-XX:+ParallelRefProcEnabled",
+            "-XX:MaxGCPauseMillis=200", "-XX:+DisableExplicitGC", "-XX:G1NewSizePercent=30",
+            "-XX:G1MaxNewSizePercent=40", "-XX:G1HeapRegionSize=8M", "-XX:G1ReservePercent=20",
+            "-XX:G1HeapWastePercent=5", "-XX:G1MixedGCCountTarget=4",
+            "-XX:InitiatingHeapOccupancyPercent=15",
+        ]
+        if preset == "light":
+            # слабый ПК: меньше стартовой памяти, короткие паузы сборщика
+            xms = min(mem, 1024)
+            flags = ["-XX:+UseG1GC", "-XX:MaxGCPauseMillis=100", "-XX:+DisableExplicitGC",
+                     "-XX:+UnlockExperimentalVMOptions", "-XX:G1NewSizePercent=20",
+                     "-XX:G1ReservePercent=20", "-XX:G1HeapRegionSize=4M"]
+        elif preset == "zgc" and java_major >= 21:
+            # много модов: ZGC почти без фризов, нужна Java 21+
+            xms = mem
+            flags = ["-XX:+UseZGC", "-XX:+DisableExplicitGC", "-XX:+AlwaysPreTouch"]
+            if java_major in (21, 22):
+                flags.append("-XX:+ZGenerational")
+        elif preset == "custom":
+            flags = []
+        else:
+            flags = aikar
+        try:
+            user = shlex.split(extra or "")
+        except ValueError:
+            user = (extra or "").split()
+        mem_flags = []
+        if not any(a.startswith("-Xmx") for a in user):
+            mem_flags.append(f"-Xmx{mem}M")
+        if not any(a.startswith("-Xms") for a in user):
+            mem_flags.append(f"-Xms{xms}M")
+        return mem_flags + flags + user
+
+    def pick_java(self):
+        try:
+            res = _window.create_file_dialog(webview.OPEN_DIALOG, allow_multiple=False)
+            if not res:
+                return {"ok": False}
+            path = res[0] if isinstance(res, (list, tuple)) else res
+            if os.path.isdir(path):
+                for cand in (os.path.join(path, "Contents", "Home", "bin", "java"),
+                             os.path.join(path, "bin", "java"), os.path.join(path, "java")):
+                    if os.path.isfile(cand):
+                        path = cand; break
+            out = subprocess.run([path, "-version"], capture_output=True, text=True, timeout=10)
+            text = (out.stderr or "") + (out.stdout or "")
+            m = re.search(r'version "([^"]+)"', text)
+            if not m:
+                return {"ok": False, "error": "Это не похоже на Java: " + os.path.basename(path)}
+            return {"ok": True, "path": path, "version": m.group(1)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
     def _launch_worker(self, profile_id, version, username, memory, loader, server=""):
         try:
             if self._arm_unsupported(version):
@@ -1546,27 +1999,14 @@ class Api:
             self._ensure_russian(mc)
             self._sync_active_mods(mc, profile_id, version, loader)
             mem = int(memory)
-            xms = min(mem, max(1024, mem // 2))
-            jvm_args = [
-                f"-Xmx{mem}M",
-                f"-Xms{xms}M",
-                "-XX:+UnlockExperimentalVMOptions",
-                "-XX:+UseG1GC",
-                "-XX:+ParallelRefProcEnabled",
-                "-XX:MaxGCPauseMillis=200",
-                "-XX:+DisableExplicitGC",
-                "-XX:G1NewSizePercent=30",
-                "-XX:G1MaxNewSizePercent=40",
-                "-XX:G1HeapRegionSize=8M",
-                "-XX:G1ReservePercent=20",
-                "-XX:G1HeapWastePercent=5",
-                "-XX:G1MixedGCCountTarget=4",
-                "-XX:InitiatingHeapOccupancyPercent=15",
-            ]
+            ps = _profile_settings(profile_id)
+            jvm_args = self._jvm_args(ps.get("jvmPreset") or "aikar", mem,
+                                      self._required_java(version), ps.get("jvmArgs") or "")
             lwjgl_jars = None
             lwjgl_nat = None
             intel_java = None
             java_exe = None
+            custom_java = (ps.get("javaPath") or "").strip()
             if self._needs_intel_java(version):
                 self._progress("Подготовка Intel Java (Rosetta)…", 0, 1)
                 intel_java = self._intel_java8_path()
@@ -1575,7 +2015,10 @@ class Api:
                 if fix == "swap":
                     self._progress("Подготовка библиотек для Apple Silicon…", 0, 1)
                     lwjgl_jars, lwjgl_nat = self._lwjgl_3xx_dir()
-                java_exe = self._ensure_java(self._required_java(version))
+                if custom_java and os.path.isfile(custom_java) and os.access(custom_java, os.X_OK):
+                    java_exe = custom_java
+                else:
+                    java_exe = self._ensure_java(self._required_java(version))
             options = {
                 "username": username or "Player",
                 "uuid": str(uuid.uuid3(uuid.NAMESPACE_DNS, username or "Player")),
@@ -1676,6 +2119,71 @@ class Api:
         try:
             with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
                 return {"ok": True, "log": f.read()[-8000:]}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def _themes_dir(self):
+        d = os.path.join(data_dir(), "themes")
+        os.makedirs(d, exist_ok=True)
+        return d
+
+    def list_themes(self):
+        d = self._themes_dir()
+        try:
+            names = sorted(f[:-4] for f in os.listdir(d) if f.lower().endswith(".css"))
+        except Exception as e:
+            return {"ok": False, "error": str(e), "themes": []}
+        if not names:
+            example = (
+                "/* Пример темы. Скопируй файл, переименуй и меняй под себя. */\n"
+                "/* Цвет акцента — кнопки и выделения */\n"
+                ":root { --accent: #c678dd; }\n"
+                "/* Пример: сильнее скруглить кнопку Играть */\n"
+                "#clPlay { border-radius: 14px; }\n"
+            )
+            try:
+                with open(os.path.join(d, "Пример.css"), "w", encoding="utf-8") as f:
+                    f.write(example)
+                names = ["Пример"]
+            except Exception:
+                pass
+        return {"ok": True, "themes": names}
+
+    def read_theme(self, name):
+        d = self._themes_dir()
+        safe = os.path.basename((name or "") + ".css")
+        path = os.path.normpath(os.path.join(d, safe))
+        if not path.startswith(os.path.normpath(d)):
+            return {"ok": False, "error": "Недопустимый путь"}
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return {"ok": True, "css": f.read()}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def import_theme(self):
+        """Выбрать .css и скопировать в папку тем. Имя темы = имя файла."""
+        try:
+            res = _window.create_file_dialog(webview.OPEN_DIALOG, allow_multiple=True,
+                                             file_types=("Темы (*.css)",))
+            if not res:
+                return {"ok": False}
+            d = self._themes_dir()
+            added = []
+            for src in res:
+                name = os.path.basename(src)
+                if not name.lower().endswith(".css"):
+                    continue
+                shutil.copy2(src, os.path.join(d, name))
+                added.append(name[:-4])
+            return {"ok": True, "added": added}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    def open_themes_folder(self):
+        try:
+            _open_path(self._themes_dir())
+            return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
