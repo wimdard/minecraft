@@ -464,7 +464,7 @@ idea-view-modal .mi-close { position:absolute; top:16px; right:18px; z-index:5;w
 .set-card .check-row { margin:0; }
 .set-sub { display:flex; align-items:center; gap:8px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); margin-top:4px; }
 .set-sub .add-theme-btn { margin-left:2px; }
-.set-card .beta-feature { display:flex; flex-direction:column; gap:10px; }
+.set-card .beta-feature, .set-card .set-group { display:flex; flex-direction:column; gap:10px; }
 .set-btn-row { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
 .set-btn-row .folder-btn { width:100%; margin:0; padding:8px 6px; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .set-more { margin:0; border-style:solid !important; border-color:var(--accent) !important; color:var(--accent) !important; }
