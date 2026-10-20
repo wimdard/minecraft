@@ -2235,7 +2235,7 @@ if __name__ == "__main__":
         min_size=(820, 580),
         background_color="#0F1114",
         resizable=True,
-
+        fullscreen=True,
         hidden=True,
     )
     if DEV:
