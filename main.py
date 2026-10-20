@@ -2231,11 +2231,11 @@ if __name__ == "__main__":
         "Minecraft Launcher",
         html_path,
         js_api=api,
-        width=1040, height=720,
+        width=1200, height=780,
         min_size=(820, 580),
         background_color="#0F1114",
         resizable=True,
-        maximized=True,
+
         hidden=True,
     )
     if DEV:
