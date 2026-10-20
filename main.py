@@ -2235,20 +2235,9 @@ if __name__ == "__main__":
         min_size=(820, 580),
         background_color="#0F1114",
         resizable=True,
-        fullscreen=True,
-        hidden=True,
+        fullscreen=True,   # сразу на весь экран; окно не скрываем — скрытое macOS в полный экран не переводит
     )
     if DEV:
         threading.Thread(target=start_watcher, daemon=True).start()
-
-    def _show_when_ready():
-        # Показываем окно, когда webview уже отрисовал тёмный HTML — без белой вспышки.
-        import time
-        time.sleep(0.25)
-        try:
-            _window.show()
-        except Exception:
-            pass
-    threading.Thread(target=_show_when_ready, daemon=True).start()
     webview.start()
 
