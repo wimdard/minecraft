@@ -133,10 +133,10 @@ const Mods = (() => {
       if (!hasProfile() || !api()) return;
       askConfirm({ icon:"⟳", title:"Обновить моды?", text: "Установленные моды будут обновлены до последних версий под текущую версию игры и загрузчик. Старые файлы заменятся новыми.", okText:"Обновить", okClass:"btn-save" }, () => {
         const s = activeProfile().settings;
-        const orig = modUpdateAll.textContent;
+        const orig = modUpdateAll.innerHTML;
         modUpdateAll.disabled = true; modUpdateAll.textContent = "Обновляю…";
         api().update_all(App.state.activeProfile, s.loader, s.version, ptype).then((r) => {
-          modUpdateAll.disabled = false; modUpdateAll.textContent = orig;
+          modUpdateAll.disabled = false; modUpdateAll.innerHTML = orig;
           if (!r || !r.ok) { askConfirm({ icon:"⚠️", title:"Не удалось", text: esc((r && r.error) || "Ошибка"), okText:"Ок" }, null); return; }
           askConfirm({ icon:"✓", title:"Обновление модов", text: r.count ? ("Обновлено модов: <b>" + r.count + "</b>.") : "Все моды уже актуальны.", okText:"Ок" }, null);
           if (typeof showInstalled === "function" && mode === "installed") showInstalled();
@@ -149,10 +149,10 @@ const Mods = (() => {
     packExport.addEventListener("click", () => {
       if (!hasProfile() || !api()) return;
       const s = activeProfile().settings;
-      const orig = packExport.textContent;
+      const orig = packExport.innerHTML;
       packExport.disabled = true; packExport.textContent = "Собираю…";
       api().export_mrpack(App.state.activeProfile, s.version, s.loader, "").then((r) => {
-        packExport.disabled = false; packExport.textContent = orig;
+        packExport.disabled = false; packExport.innerHTML = orig;
         if (!r || (!r.ok && !r.error)) return; // отменили окно сохранения
         if (!r.ok) { askConfirm({ icon:"⚠️", title:"Не удалось", text: esc(r.error), okText:"Ок" }, null); return; }
         const extra = r.bundled ? `<br>Не с Modrinth, вложено в файл: <b>${r.bundled}</b>.` : "";

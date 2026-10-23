@@ -14,6 +14,8 @@ const ModSets = (() => {
     const t = (typeof Mods !== "undefined" && Mods.type) ? Mods.type() : "mod";
     const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? "" : "none"; };
     show("packExport", t === "mod");
+    show("modCheck", t === "mod");
+    show("modMigrate", t === "mod");
     show("modUpdateAll", t !== "modpack" && t !== "browse");
     if (!api() || !hasProfile() || !isModType()) { bar.style.display = "none"; return; }
     bar.style.display = "";

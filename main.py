@@ -29,7 +29,7 @@ MODRINTH_API = "https://api.modrinth.com/v2"
 MOJANG_MANIFEST = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
 NEOFORGE_MAVEN = "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml"
 USER_AGENT = "MCLauncher/1.0 (personal launcher)"
-APP_VERSION = "0.1.3"
+APP_VERSION = "0.1.4"
 GITHUB_REPO = "wimdard/minecraft"
 GITHUB_RAW = "https://raw.githubusercontent.com/wimdard/minecraft/main"
 
@@ -1616,6 +1616,190 @@ class Api:
             self._set_active_modset(profile_id, version, loader, MODSET_DEFAULT)
         return {"ok": True, "active": active_modset(profile_id, version, loader)}
 
+    # ---------- перенос сборки на другую версию + проверка модов ----------
+    def _store_hashes(self, profile_id, version, loader):
+        """{sha1: имя файла} для включённых модов хранилища версии."""
+        store = mods_store_dir(profile_id, version, loader)
+        out = {}
+        for f in sorted(os.listdir(store)):
+            if f.lower().endswith(".jar"):
+                h = self._sha1_file(os.path.join(store, f))
+                if h:
+                    out[h] = f
+        return store, out
+
+    def _projects_info(self, ids):
+        """Названия и иконки проектов Modrinth пачками по 100."""
+        info = {}
+        ids = [i for i in dict.fromkeys(ids) if i]
+        for i in range(0, len(ids), 100):
+            try:
+                q = urllib.parse.quote(json.dumps(ids[i:i + 100]))
+                for p in (http_get_json(f"{MODRINTH_API}/projects?ids={q}") or []):
+                    info[p.get("id")] = {"name": p.get("title"), "icon_url": p.get("icon_url") or ""}
+            except Exception:
+                pass
+        return info
+
+    @staticmethod
+    def _loaders_for(loader):
+        # Quilt запускает и Fabric-моды
+        return ["quilt", "fabric"] if loader == "quilt" else [loader]
+
+    def plan_migration(self, profile_id, from_version, from_loader, to_version, to_loader):
+        """Какие моды текущей сборки есть под другую версию/загрузчик. Ничего не качает."""
+        if not to_version or to_loader in ("", "vanilla"):
+            return {"ok": False, "error": "Выбери версию и загрузчик с поддержкой модов"}
+        if to_version == from_version and to_loader == from_loader:
+            return {"ok": False, "error": "Это и есть текущая версия"}
+        _, hashes = self._store_hashes(profile_id, from_version, from_loader)
+        if not hashes:
+            return {"ok": False, "error": "В текущей сборке нет включённых модов"}
+        try:
+            cur = http_post_json(f"{MODRINTH_API}/version_files",
+                                 {"hashes": list(hashes), "algorithm": "sha1"}) or {}
+            # для каждого файла — последняя версия того же мода под нужную игру и загрузчик
+            upd = http_post_json(f"{MODRINTH_API}/version_files/update",
+                                 {"hashes": list(hashes), "algorithm": "sha1",
+                                  "loaders": self._loaders_for(to_loader),
+                                  "game_versions": [to_version]}) or {}
+        except Exception as e:
+            return {"ok": False, "error": "Modrinth недоступен: " + str(e)}
+        info = self._projects_info([v.get("project_id") for v in cur.values() if v])
+        items = []
+        for h, fn in hashes.items():
+            v = cur.get(h)
+            if not v:
+                items.append({"filename": fn, "name": fn, "icon_url": "", "status": "unknown"})
+                continue
+            pid = v.get("project_id")
+            meta = info.get(pid) or {}
+            nv = upd.get(h)
+            ok = bool(nv) and to_version in (nv.get("game_versions") or [])
+            item = {"filename": fn, "project_id": pid, "name": meta.get("name") or fn,
+                    "icon_url": meta.get("icon_url", ""), "status": "ok" if ok else "missing",
+                    "from": v.get("version_number") or ""}
+            if ok:
+                item["to"] = nv.get("version_number") or ""
+                item["version_id"] = nv.get("id")
+            items.append(item)
+        order = {"ok": 0, "missing": 1, "unknown": 2}
+        items.sort(key=lambda x: (order[x["status"]], (x["name"] or "").lower()))
+        return {"ok": True, "items": items,
+                "count": {s: sum(1 for x in items if x["status"] == s) for s in order}}
+
+    def run_migration(self, profile_id, from_version, from_loader, to_version, to_loader,
+                      version_ids, copy_files=None):
+        """Ставит выбранные версии модов в сборку другой версии + их обязательные зависимости."""
+        src = mods_store_dir(profile_id, from_version, from_loader)
+        dst = mods_store_dir(profile_id, to_version, to_loader)
+        installed, failed, deps_added, copied = [], [], [], []
+        done = {}
+        vers = []
+        ids = [v for v in (version_ids or []) if v]
+        for i in range(0, len(ids), 100):
+            try:
+                q = urllib.parse.quote(json.dumps(ids[i:i + 100]))
+                vers += http_get_json(f"{MODRINTH_API}/versions?ids={q}") or []
+            except Exception as e:
+                failed.append("не удалось получить версии: " + str(e))
+        for ver in vers:
+            files = ver.get("files") or []
+            target = next((f for f in files if f.get("primary")), files[0] if files else None)
+            if not target:
+                failed.append(ver.get("name") or ver.get("id")); continue
+            dest = os.path.join(dst, os.path.basename(target["filename"]))
+            try:
+                if not os.path.exists(dest):
+                    http_download(target["url"], dest)
+                done[ver.get("project_id")] = target["filename"]
+                installed.append(target["filename"])
+            except Exception:
+                failed.append(target["filename"])
+        # обязательные зависимости новых версий, которых не было в старой сборке
+        for ver in vers:
+            for d in ver.get("dependencies") or []:
+                dpid = d.get("project_id")
+                if d.get("dependency_type") != "required" or not dpid or dpid in done:
+                    continue
+                before = set(done)
+                try:
+                    r = self._install_one(profile_id, dpid, to_loader, to_version, "mod", done, True)
+                    if r.get("ok"):
+                        deps_added += [done[p] for p in done if p not in before]
+                except Exception:
+                    pass
+        for fn in copy_files or []:
+            name = os.path.basename(fn)
+            s = os.path.join(src, name)
+            if os.path.isfile(s):
+                try:
+                    shutil.copy2(s, os.path.join(dst, name)); copied.append(name)
+                except Exception:
+                    failed.append(name)
+        return {"ok": True, "installed": len(installed), "deps": deps_added,
+                "copied": len(copied), "failed": failed}
+
+    def check_mods(self, profile_id, version, loader):
+        """Проблемы сборки до запуска: дубли, нехватка зависимостей, несовместимые пары,
+        моды под другую версию игры или другой загрузчик."""
+        if loader in ("", "vanilla"):
+            return {"ok": True, "issues": [], "checked": 0}
+        _, hashes = self._store_hashes(profile_id, version, loader)
+        if not hashes:
+            return {"ok": True, "issues": [], "checked": 0}
+        try:
+            cur = http_post_json(f"{MODRINTH_API}/version_files",
+                                 {"hashes": list(hashes), "algorithm": "sha1"}) or {}
+        except Exception:
+            return {"ok": False, "offline": True, "issues": [], "checked": len(hashes)}
+        by_pid, vers = {}, {}
+        for h, fn in hashes.items():
+            v = cur.get(h)
+            if v and v.get("project_id"):
+                by_pid.setdefault(v["project_id"], []).append(fn)
+                vers[fn] = v
+        dep_ids = {d.get("project_id") for v in vers.values()
+                   for d in (v.get("dependencies") or []) if d.get("project_id")}
+        info = self._projects_info(list(by_pid) + list(dep_ids))
+        name = lambda pid: (info.get(pid) or {}).get("name") or pid
+        ok_loaders = self._loaders_for(loader)
+        issues, seen = [], set()
+
+        def add(key, level, text, **extra):
+            if key in seen:
+                return
+            seen.add(key)
+            issues.append(dict(level=level, text=text, **extra))
+
+        for pid, fns in by_pid.items():
+            if len(fns) > 1:
+                add(("dup", pid), "error", f"{name(pid)} установлен {len(fns)} раза — оставь один файл",
+                    files=fns)
+        for fn, v in vers.items():
+            pid = v["project_id"]
+            ld = v.get("loaders") or []
+            gv = v.get("game_versions") or []
+            if ld and not any(l in ld for l in ok_loaders):
+                add(("loader", pid), "error", f"{name(pid)} — мод для {', '.join(ld)}, а у тебя {loader}",
+                    files=[fn])
+            elif version and gv and version not in gv:
+                add(("ver", pid), "warn", f"{name(pid)} сделан для {', '.join(gv[-3:])}, а у тебя {version}",
+                    files=[fn])
+            for d in v.get("dependencies") or []:
+                dp, dt = d.get("project_id"), d.get("dependency_type")
+                if not dp:
+                    continue
+                if dt == "required" and dp not in by_pid:
+                    add(("need", dp), "error", f"{name(pid)} требует {name(dp)} — его нет", fix=dp)
+                elif dt == "incompatible" and dp in by_pid:
+                    add(("inc",) + tuple(sorted((pid, dp))), "error",
+                        f"{name(pid)} несовместим с {name(dp)} — выключи один из них",
+                        files=[fn] + by_pid[dp])
+        issues.sort(key=lambda x: 0 if x["level"] == "error" else 1)
+        unknown = [fn for h, fn in hashes.items() if h not in cur]
+        return {"ok": True, "issues": issues, "checked": len(hashes), "unknown": unknown}
+
     def list_installed(self, profile_id, ptype="mod"):
         d = content_dir(profile_id, ptype)
         exts = (".jar", ".jar.disabled") if ptype == "mod" else (".zip", ".jar")
@@ -2188,8 +2372,17 @@ class Api:
             return {"ok": False, "error": str(e)}
 
     def reload_now(self):
-        if _window:
-            _window.load_url(resource_path("index.html"))
+        # перезагружаем чуть позже: сначала pywebview должен вернуть ответ в страницу,
+        # иначе он шлёт его в уже выгруженную страницу и сыплет JavascriptException
+        def _later():
+            import time
+            time.sleep(0.15)
+            try:
+                if _window:
+                    _window.evaluate_js("location.reload()")
+            except Exception:
+                pass
+        threading.Thread(target=_later, daemon=True).start()
         return True
 
 def start_watcher():

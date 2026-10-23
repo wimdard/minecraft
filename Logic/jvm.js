@@ -46,8 +46,10 @@ const Jvm = (() => {
     delete st.javaPath; persist(); render();
   });
 
-  const openBtn = document.getElementById("openPanel2Btn");
-  if (openBtn) openBtn.addEventListener("click", render);
+  // панель одна: обновляем блок при каждом открытии настроек
+  const openBtn = document.getElementById("topSettings");
+  if (openBtn) openBtn.addEventListener("click", () => setTimeout(render, 0));
+  (function wait(n) { if (App.state) render(); else if (n < 50) setTimeout(() => wait(n + 1), 100); })(0);
 
   return { render };
 })();
